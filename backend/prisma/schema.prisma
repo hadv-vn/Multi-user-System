@@ -1,0 +1,138 @@
+// Prisma schema cho module nền tảng Auth + RBAC (Multi-User System — Phase 1)
+// Nguồn thiết kế: docs/design/data-model-multi-user-system.md
+// Model PascalCase/camelCase (Prisma), map sang bảng/cột snake_case ở DB qua @@map/@map.
+// Connection URL cấu hình tại prisma.config.ts (Prisma 7+ không còn hỗ trợ
+// `url` trực tiếp trong khối datasource).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  // Lưu dạng đã chuẩn hoá (lowercase+trim) — chuẩn hoá thực hiện tại
+  // AuthService trước khi gọi repository (xem lld-phase1-auth-session.md),
+  // nên @unique thường (không cần functional index LOWER(email)) là đủ.
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  name                String?   @db.VarChar(255)
+  emailVerifiedAt     DateTime? @map("email_verified_at") @db.Timestamptz()
+  status              String    @default("ACTIVE") @db.VarChar(20)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz()
+  disabledAt          DateTime? @map("disabled_at") @db.Timestamptz()
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  userRoles               UserRole[]
+  sessions                Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  // Giai đoạn 2 — actor-tracking (C-15/T9), xem AdminActionLog bên dưới.
+  adminActionLogsAsTarget AdminActionLog[] @relation("AdminActionLogTarget")
+  adminActionLogsAsActor  AdminActionLog[] @relation("AdminActionLogActor")
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  roleId     Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model Session {
+  id           String    @id @db.VarChar(64)
+  userId       String    @map("user_id") @db.Uuid
+  roleSnapshot String    @map("role_snapshot") @db.VarChar(50)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz()
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model EmailVerificationToken {
+  id        BigInt    @id @default(autoincrement())
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz()
+  usedAt    DateTime? @map("used_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        BigInt    @id @default(autoincrement())
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz()
+  usedAt    DateTime? @map("used_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// Giai đoạn 2 (MỚI) — actor-tracking tối giản cho hành động Admin (C-15/T9).
+// Nguồn thiết kế: docs/design/data-model-multi-user-system.md (mục
+// "admin_action_log"), docs/design/lld-phase2-rbac-account-admin.md.
+// Append-only: không có updatedAt, không update/soft-delete dòng đã ghi.
+// CHECK constraint action_type IN ('LOCK','UNLOCK','ROLE_CHANGE') được thêm
+// trực tiếp ở migration SQL (Prisma schema không khai báo CHECK theo danh
+// sách giá trị cố định được — cùng cách users.status đã làm).
+model AdminActionLog {
+  id                 BigInt   @id @default(autoincrement())
+  actionType         String   @map("action_type") @db.VarChar(30)
+  targetUserId       String   @map("target_user_id") @db.Uuid
+  performedByAdminId String   @map("performed_by_admin_id") @db.Uuid
+  previousValue      String?  @map("previous_value") @db.VarChar(50)
+  newValue           String?  @map("new_value") @db.VarChar(50)
+  performedAt        DateTime @default(now()) @map("performed_at") @db.Timestamptz()
+
+  // ON DELETE RESTRICT (không hard-delete user trong hệ thống này — C-2,
+  // soft-delete qua DEACTIVATED) — giữ toàn vẹn lịch sử actor-tracking.
+  targetUser       User @relation("AdminActionLogTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  performedByAdmin User @relation("AdminActionLogActor", fields: [performedByAdminId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId])
+  @@index([performedByAdminId])
+  @@index([performedAt(sort: Desc)])
+  @@map("admin_action_log")
+}
