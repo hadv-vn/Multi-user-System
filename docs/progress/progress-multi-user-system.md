@@ -1,7 +1,7 @@
 ---
 progress_tracker: true
 source: docs/design/hld-multi-user-system.md (mục "Phase breakdown (input cho low-level-designer)")
-last_updated: 2026-10-18
+last_updated: 2026-10-18 (Phase 2 Backend cập nhật lần 2, cùng ngày)
 ---
 
 # Theo dõi tiến độ: Multi-User System (Auth/RBAC)
@@ -22,15 +22,16 @@ là đã xong.
 ## Thống kê tổng quan
 
 - Tổng số hạng mục (Backend + Frontend, cả 4 phase): 50
-- Hoàn thành: 23 (46.0%)
+- Hoàn thành: 33 (66.0%)
 - Đang làm: 0 (0.0%)
-- Chưa bắt đầu: 27 (54.0%)
+- Chưa bắt đầu: 17 (34.0%)
 
 ### Theo track
-- Backend: 23/38 hoàn thành (60.5%)
+- Backend: 33/38 hoàn thành (86.8%)
 - Frontend: 0/12 hoàn thành (0.0%) — toàn bộ Frontend/Next.js chưa khởi
   tạo, kể cả thư mục `frontend/` (chỉ được khai báo tên workspace trong
-  `package.json` gốc, chưa có nội dung nào).
+  `package.json` gốc, chưa có nội dung nào — xác nhận lại 2026-10-18,
+  `frontend/` vẫn không tồn tại).
 
 ## Thống kê theo Phase
 
@@ -38,7 +39,7 @@ là đã xong.
 |---|---|---|---|---|---|---|
 | Phase 0 — Nền tảng | 9/9 | 100.0% | 0/2 | 0.0% | 9/11 | 81.8% |
 | Phase 1 — Auth + Session | 14/14 | 100.0% | 0/6 | 0.0% | 14/20 | 70.0% |
-| Phase 2 — RBAC + Account + Admin | 0/10 | 0.0% | 0/3 | 0.0% | 0/13 | 0.0% |
+| Phase 2 — RBAC + Account + Admin | 10/10 | 100.0% | 0/3 | 0.0% | 10/13 | 76.9% |
 | Phase 3 — Hardening + UI polish | 0/5 | 0.0% | 0/1 | 0.0% | 0/6 | 0.0% |
 
 ## Checklist chi tiết
@@ -140,25 +141,43 @@ là đã xong.
 ### Phase 2: RBAC + Account + Admin
 
 #### Backend
-- [ ] P2-BE-01 RbacModule: `RolesGuard` + decorator `@Roles` — Chưa bắt đầu
-  (không tìm thấy `RbacModule`/`RolesGuard`/`@Roles` trong `backend/src/`)
-- [ ] P2-BE-02 RbacModule: `LastAdminPolicyService`
-  (`SELECT ... FOR UPDATE`) — Chưa bắt đầu
-- [ ] P2-BE-03 AccountModule: xem/sửa hồ sơ cá nhân (`name`) — Chưa bắt đầu
-  (không tìm thấy `AccountModule`)
-- [ ] P2-BE-04 AccountModule: đổi mật khẩu — Chưa bắt đầu
-- [ ] P2-BE-05 AccountModule: tự vô hiệu hóa (gọi
-  `LastAdminPolicyService` + `SessionModule` revoke) — Chưa bắt đầu
-- [ ] P2-BE-06 AdminModule: danh sách/tìm kiếm người dùng — Chưa bắt đầu
-  (không tìm thấy `AdminModule`)
-- [ ] P2-BE-07 AdminModule: khóa/mở khóa (transaction + revoke session) —
-  Chưa bắt đầu
-- [ ] P2-BE-08 AdminModule: đổi role (transaction + `LastAdminPolicyService`,
-  kèm revoke session khi hạ cấp ADMIN theo C-12) — Chưa bắt đầu
-- [ ] P2-BE-09 CSRF protection (C-14) cho route state-changing của
-  AdminModule/AccountModule — Chưa bắt đầu
-- [ ] P2-BE-10 Actor-tracking (C-15: `performed_by_admin_id` + timestamp)
-  — Chưa bắt đầu
+- [x] P2-BE-01 RbacModule: `RolesGuard` + decorator `@Roles`
+  (`backend/src/rbac/guards/roles.guard.ts` + spec, `roles.decorator.ts`)
+  — Hoàn thành (cập nhật: 2026-10-18)
+- [x] P2-BE-02 RbacModule: `LastAdminPolicyService`
+  (`backend/src/rbac/last-admin-policy.service.ts` + spec) — Hoàn thành
+  (cập nhật: 2026-10-18)
+- [x] P2-BE-03 AccountModule: xem/sửa hồ sơ cá nhân (`name`)
+  (`backend/src/account/account.controller.ts`,
+  `account.service.ts` + spec,
+  `guards/reject-non-editable-profile-fields.guard.ts` + spec) — Hoàn
+  thành (cập nhật: 2026-10-18)
+- [x] P2-BE-04 AccountModule: đổi mật khẩu (`account.service.ts`
+  `changePassword`, `dto/change-password.dto.ts`) — Hoàn thành (cập nhật:
+  2026-10-18)
+- [x] P2-BE-05 AccountModule: tự vô hiệu hóa (gọi
+  `LastAdminPolicyService` + `SessionModule` revoke sau khi commit,
+  `account.service.ts` `deactivateAccount`) — Hoàn thành (cập nhật:
+  2026-10-18)
+- [x] P2-BE-06 AdminModule: danh sách/tìm kiếm người dùng
+  (`backend/src/admin/admin.controller.ts`, `admin.service.ts` + spec,
+  `dto/list-users-query.dto.ts`) — Hoàn thành (cập nhật: 2026-10-18)
+- [x] P2-BE-07 AdminModule: khóa/mở khóa (transaction + revoke session
+  trong cùng transaction, `admin.service.ts` `lockUser`/`unlockUser`) —
+  Hoàn thành (cập nhật: 2026-10-18)
+- [x] P2-BE-08 AdminModule: đổi role (transaction + `LastAdminPolicyService`,
+  kèm revoke session khi hạ cấp ADMIN theo C-12, `admin.service.ts`
+  `changeRole`) — Hoàn thành (cập nhật: 2026-10-18)
+- [x] P2-BE-09 CSRF protection (C-14) cho route state-changing của
+  AdminModule/AccountModule (`backend/src/common/csrf/csrf.guard.ts` +
+  spec, `csrf-token.service.ts` + spec, `csrf-cookie-issuer.interceptor.ts`;
+  gắn `@UseGuards(CsrfGuard, ...)` trên mọi route POST/PATCH của
+  `admin.controller.ts`/`account.controller.ts`) — Hoàn thành (cập nhật:
+  2026-10-18)
+- [x] P2-BE-10 Actor-tracking (C-15: actor id + timestamp qua
+  `AdminActionLog`, `backend/src/admin/repositories/prisma-admin-action-log.repository.ts`,
+  migration `20261018010000_add_admin_action_log`, đã được
+  `db-schema-reviewer` duyệt) — Hoàn thành (cập nhật: 2026-10-18)
 
 #### Frontend
 - [ ] P2-FE-01 S7 (hồ sơ cá nhân) — Chưa bắt đầu
