@@ -68,8 +68,21 @@ liệu này.
   - Nút hành động chính "Đăng ký" (primary, full-width trong card).
   - Link phụ "Đã có tài khoản? Đăng nhập" dẫn sang S4.
 
-> **Lưu ý thiết kế quan trọng (bám sát AC2 của REQ-AUTH-001, không phải tùy
-> ý bỏ qua yêu cầu "hiển thị lỗi email đã tồn tại" trong đề bài)**: SRS quy
+> **CẬP NHẬT 2026-10-19 (đã xác nhận với stakeholder, thay thế lưu ý gốc bên
+> dưới)**: Khi chi tiết hóa xuống LLD Frontend (`low-level-designer`,
+> `docs/design/lld-frontend-phase0-1.md`, mục "Rủi ro"), phát hiện backend
+> đã code (`AuthService`/`DuplicateEmailException`) trả **`409
+> EMAIL_ALREADY_REGISTERED`** rõ ràng khi email đã tồn tại, khác với thiết
+> kế "ẩn hoàn toàn" mô tả ban đầu dưới đây. Stakeholder đã xác nhận
+> **giữ theo hành vi thật của backend** (không sửa lại backend đã hoàn
+> thành/đã test) — tức là **đổi quyết định AC2 cũ**: màn hình đăng ký ở S1
+> **có** hiển thị lỗi 409 dưới field Email ("Email này đã được đăng ký.
+> Vui lòng đăng nhập hoặc dùng email khác.") khi email đã tồn tại, thay vì
+> luôn điều hướng ẩn danh sang S2. S2 chỉ còn áp dụng cho trường hợp đăng ký
+> thành công thật. Lưu ý gốc dưới đây **không còn là quyết định hiện hành**,
+> giữ lại chỉ để tham chiếu lịch sử.
+>
+> **Lưu ý thiết kế gốc (đã thay thế, xem cập nhật trên)**: SRS quy
 > định rõ khi email đã tồn tại, hệ thống **không được tiết lộ** việc đó qua
 > thông báo lỗi (tránh user-enumeration). Do đó màn hình đăng ký **không**
 > có một "trạng thái lỗi email đã tồn tại" hiển thị riêng cho người dùng.
@@ -85,7 +98,7 @@ liệu này.
 |---|---|
 | Loading | Khi nhấn "Đăng ký": nút chuyển sang ring-spinner nội bộ, disable toàn bộ field + nút trong lúc chờ phản hồi API. |
 | Empty | Không áp dụng (đây là form nhập liệu, không có dữ liệu để tải). |
-| Error | Lỗi validate client-side hiển thị ngay dưới từng field (xem bảng D1). Lỗi server-side không-định-danh (ví dụ mật khẩu yếu theo rule server, email sai định dạng theo rule server) hiển thị dưới field tương ứng cùng phong cách. Lỗi do bị chặn spam/rate-limit theo IP (AC5/NFR-003): banner lỗi toàn form phía trên, nội dung "Hệ thống phát hiện quá nhiều yêu cầu đăng ký từ nguồn của bạn. Vui lòng thử lại sau." — không cho thử lại ngay (không có nút retry tức thời, chỉ có thể thử lại sau một khoảng thời gian). |
+| Error | Lỗi validate client-side hiển thị ngay dưới từng field (xem bảng D1). Lỗi server-side không-định-danh (ví dụ mật khẩu yếu theo rule server, email sai định dạng theo rule server) hiển thị dưới field tương ứng cùng phong cách. **Email đã tồn tại (cập nhật 2026-10-19, xem lưu ý trên — khác AC2 gốc)**: lỗi `409 EMAIL_ALREADY_REGISTERED` hiển thị inline dưới field Email: "Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác." Lỗi do bị chặn spam/rate-limit theo IP (AC5/NFR-003): banner lỗi toàn form phía trên, nội dung "Hệ thống phát hiện quá nhiều yêu cầu đăng ký từ nguồn của bạn. Vui lòng thử lại sau." — không cho thử lại ngay (không có nút retry tức thời, chỉ có thể thử lại sau một khoảng thời gian). |
 | Success | Điều hướng sang màn hình S2 "Kiểm tra email" (không hiển thị trạng thái thành công tại chỗ). |
 
 #### Quy tắc validate input (D1)
@@ -215,15 +228,25 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
 ### S6. Đặt lại mật khẩu — Bước 2: Từ liên kết (`/reset-password?token=...`) — REQ-AUTH-004
 
 - **Mục đích**: Cho người dùng đặt mật khẩu mới sau khi bấm vào liên kết reset từ email.
-- **Thành phần chính**: Glass card; nội dung thay đổi theo kết quả kiểm tra token trước khi hiển thị form.
+- **Thành phần chính**: Glass card; hiển thị form đặt mật khẩu mới ngay khi vào trang.
+
+> **CẬP NHẬT 2026-10-19 (đã xác nhận với stakeholder)**: LLD Frontend
+> (`docs/design/lld-frontend-phase0-1.md`, mục "Rủi ro") phát hiện backend
+> chỉ có **một endpoint duy nhất** `POST /auth/reset-password` nhận
+> `{token, newPassword}` cùng lúc — không có endpoint riêng để kiểm tra
+> token *trước khi* hiển thị form như mô tả ban đầu. Stakeholder đã xác
+> nhận **bỏ bước "kiểm tra liên kết trước"**: trang hiển thị form nhập mật
+> khẩu mới ngay khi vào, chỉ phát hiện token hết hạn/đã dùng/không hợp lệ
+> **sau khi** người dùng submit. Không thêm endpoint pre-check mới ở
+> backend. Bảng trạng thái dưới đây đã được cập nhật theo quyết định này.
 
 #### Trạng thái màn hình
 
 | Trạng thái | Hiển thị |
 |---|---|
-| Loading | Khi vào trang: ring-spinner + "Đang kiểm tra liên kết..." (kiểm tra token hợp lệ/còn hạn trước khi hiện form). Khi submit mật khẩu mới: nút primary chuyển ring-spinner, disable form. |
+| Loading | Khi vào trang: hiển thị form ngay (không có bước kiểm tra liên kết trước — xem cập nhật trên). Khi submit mật khẩu mới: nút primary chuyển ring-spinner, disable form. |
 | Empty | Không áp dụng. |
-| Error — liên kết hết hạn hoặc đã dùng (AC4) | Icon cảnh báo amber, tiêu đề "Liên kết đặt lại mật khẩu không còn hiệu lực", mô tả "Liên kết đã hết hạn hoặc đã được sử dụng." + nút primary "Yêu cầu liên kết mới" (→ quay lại S5). Form đặt mật khẩu **không hiển thị** trong trường hợp này. |
+| Error — liên kết hết hạn/đã dùng/không hợp lệ (AC4, chỉ phát hiện được sau khi submit) | Icon cảnh báo amber, tiêu đề "Liên kết đặt lại mật khẩu không còn hiệu lực", mô tả "Liên kết đã hết hạn hoặc đã được sử dụng." + nút primary "Yêu cầu liên kết mới" (→ quay lại S5). Form đặt mật khẩu **ẩn đi** sau khi phát hiện lỗi này (thay thế bằng thông điệp lỗi). |
 | Error — validate mật khẩu mới (client-side, xem bảng D6) | Hiển thị inline dưới field tương ứng. |
 | Error — mật khẩu mới trùng mật khẩu cũ (AC5, chỉ phát hiện được server-side) | Banner lỗi/ inline dưới field Mật khẩu mới: "Mật khẩu mới không được trùng với mật khẩu hiện tại." |
 | Success (AC3) | Toast/nội dung thành công "Đặt lại mật khẩu thành công." + tự động điều hướng sang S4 (Đăng nhập) sau 2–3 giây hoặc nút "Đăng nhập ngay". |
@@ -253,9 +276,19 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
 | Error | Tải thất bại: banner lỗi "Không thể tải thông tin hồ sơ." + nút "Thử lại". Lưu thất bại do validate: inline dưới field Họ tên. Lưu thất bại do lỗi hệ thống: toast lỗi "Không thể lưu thay đổi, vui lòng thử lại." |
 | Success | Hiển thị đủ 3 field với dữ liệu hiện tại; sau khi lưu thành công: toast "Đã cập nhật hồ sơ." |
 
+> **CẬP NHẬT 2026-10-19 (đã xác nhận, thay thế rule gốc dưới đây)**: LLD
+> Frontend Phase 2 (`docs/design/lld-frontend-phase2.md`, mục "Rủi ro" #1)
+> phát hiện `UpdateProfileDto` thật (`@Length(1,100)`, không
+> `@IsOptional()`) yêu cầu `name` **bắt buộc, 1–100 ký tự** — khác rule gốc
+> "không bắt buộc... nếu nhập thì 2–100 ký tự" dưới đây. Đã xác nhận giữ
+> theo hành vi backend thật (không sửa backend). Field Họ tên ở S7a vẫn
+> cho phép hiển thị placeholder "Chưa đặt tên hiển thị" khi `name=null`
+> (dữ liệu cũ từ trước khi có rule này), nhưng **mọi lần lưu mới đều phải
+> nhập họ tên** — không còn submit được giá trị rỗng.
+
 | Field | Rule | Thông báo lỗi |
 |---|---|---|
-| Họ tên | Không bắt buộc (có thể để trống, xem Empty state); nếu nhập thì 2–100 ký tự | "Họ tên phải từ 2 đến 100 ký tự" |
+| Họ tên | **Bắt buộc, 1–100 ký tự** (cập nhật 2026-10-19 — xem trên; rule gốc "không bắt buộc... 2–100 ký tự" không còn đúng) | "Vui lòng nhập họ tên" (rỗng) / "Họ tên phải có 1 đến 100 ký tự" |
 | Email | Readonly — không cho sửa | Không áp dụng |
 | Vai trò | Readonly — không cho sửa | Không áp dụng |
 
@@ -287,7 +320,7 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
 | Loading | Khi xác nhận trong dialog: nút "Xác nhận vô hiệu hóa" chuyển ring-spinner, disable toàn dialog. |
 | Empty | Không áp dụng. |
 | Error — mật khẩu xác nhận sai | Inline trong dialog dưới field mật khẩu: "Mật khẩu không đúng." |
-| Error — chặn bởi last-admin rule (AC3, ràng buộc C-3) | Thay vì cho mở dialog bình thường: nếu người dùng hiện tại là ADMIN duy nhất của hệ thống, nút "Vô hiệu hóa tài khoản của tôi" ở trạng thái **disabled kèm tooltip/banner cảnh báo cố định** ngay trong section: "Không thể vô hiệu hóa: bạn là ADMIN duy nhất của hệ thống. Hãy gán vai trò ADMIN cho người khác trước." Nếu do race-condition mà request vẫn được gửi, backend từ chối và hiển thị cùng thông điệp này dưới dạng toast lỗi. |
+| Error — chặn bởi last-admin rule (AC3, ràng buộc C-3) | **CẬP NHẬT 2026-10-19 (đã xác nhận, thay thế mô tả gốc)**: `GET /account/me` không trả thông tin "có phải ADMIN duy nhất không" (LLD Frontend Phase 2, mục "Rủi ro" #4) — FE **không thể** tự `disabled` nút trước khi mở dialog như mô tả gốc. Nút "Vô hiệu hóa tài khoản của tôi" LUÔN enable; lỗi `409 LAST_ADMIN_RULE_VIOLATION` chỉ hiển thị SAU khi submit, dưới dạng bannerError NGAY TRONG dialog (dialog giữ mở, không đóng+toast): "Không thể vô hiệu hóa: bạn là ADMIN duy nhất của hệ thống. Hãy gán vai trò ADMIN cho người khác trước." *(Mô tả gốc "disabled kèm tooltip cố định trước khi mở dialog" không còn áp dụng — cần có endpoint mới trả số ADMIN active để làm được, ngoài phạm vi Phase 2.)* |
 | Success (AC1) | Toast "Tài khoản đã được vô hiệu hóa." → phiên kết thúc ngay → điều hướng về S4 (Đăng nhập) kèm banner ngữ cảnh "Tài khoản của bạn đã được vô hiệu hóa." |
 
 | Field | Rule | Thông báo lỗi |
@@ -304,6 +337,20 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
   - Tiêu đề "Quản trị người dùng".
   - Ô tìm kiếm theo email (input với icon kính lúp, debounce khi gõ).
   - Bảng danh sách: cột Email, Họ tên, Vai trò (badge), Trạng thái (chấm glow + nhãn: Hoạt động / Đã khóa / Chưa xác thực email), cột Hành động (nút "Khóa"/"Mở khóa", nút "Đổi vai trò").
+
+> **CẬP NHẬT 2026-10-19 (đã xác nhận, 2 điểm thay thế mô tả trên)**: LLD
+> Frontend Phase 2 (`docs/design/lld-frontend-phase2.md`, mục "Rủi ro" #2,
+> #3) phát hiện 2 điểm lệch với contract backend thật
+> (`AdminUserListItemRecord`):
+> 1. **Không có cột "Họ tên"** — repository thật không SELECT field này.
+>    Bảng S8 thực tế chỉ có 4 cột: Email, Vai trò, Trạng thái, Hành động.
+> 2. **`status` thật có 4 giá trị, không phải 3**: `ACTIVE` (Hoạt động),
+>    `LOCKED` (Đã khóa), `PENDING_VERIFICATION` (Chưa xác thực email), và
+>    **`DEACTIVATED`** (Đã vô hiệu hóa — tài khoản tự soft-delete qua S7c,
+>    KHÔNG bị lọc khỏi danh sách admin). Badge "Đã vô hiệu hóa" (màu
+>    xám/trung tính) là nhãn mới, cần UX xác nhận màu/nhãn chính thức. Nút
+>    "Khóa"/"Mở khóa" tự `disabled` kèm tooltip cho dòng `DEACTIVATED`
+>    (suy luận được trước từ `status`, khác trường hợp last-admin ở dưới).
   - Phân trang ở cuối bảng *(giả định cần — số lượng người dùng có thể lớn, SRS không nói rõ chi tiết phân trang, cần xác nhận)*.
   - **Dialog xác nhận khóa/mở khóa**: tiêu đề động ("Xác nhận khóa tài khoản" / "Xác nhận mở khóa tài khoản"), mô tả hệ quả (khóa → mọi phiên hiện tại của user đó kết thúc ngay — theo AC1), nút "Hủy"/"Xác nhận".
   - **Dialog đổi vai trò**: tiêu đề "Đổi vai trò cho [email]", select vai trò (USER/ADMIN, loại trừ vai trò hiện tại khỏi lựa chọn mặc định), nút "Hủy"/"Xác nhận thay đổi".
@@ -319,10 +366,23 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
 
 #### Quy tắc chặn bởi last-admin rule (C-3, áp dụng cho AC3 của REQ-ADMIN-002 và AC2/AC3 của REQ-ADMIN-003)
 
-- **Tự khóa chính mình khi là ADMIN duy nhất**: nút "Khóa" tại dòng chính ADMIN đang đăng nhập **disabled kèm tooltip**: "Không thể khóa: bạn là ADMIN duy nhất của hệ thống."
-- **Tự hạ cấp vai trò chính mình khi là ADMIN duy nhất**: trong dialog đổi vai trò tại dòng của chính mình, lựa chọn "USER" bị disabled kèm ghi chú: "Không thể hạ cấp: bạn là ADMIN duy nhất của hệ thống."
-- **Hạ cấp một ADMIN khác khiến hệ thống còn 0 ADMIN**: nếu hệ thống chỉ còn đúng 2 ADMIN và admin đang thao tác chọn hạ cấp admin còn lại — về nguyên tắc thao tác này không tự thân vi phạm rule (đang thao tác vẫn còn là ADMIN), nên **cho phép ở UI**; tuy nhiên nếu backend phát hiện tại thời điểm xử lý hệ thống sẽ còn 0 ADMIN (race-condition hiếm, ví dụ đồng thời có thao tác khác), hiển thị toast lỗi rõ ràng: "Không thể thực hiện: hành động này sẽ khiến hệ thống không còn ADMIN nào." và hoàn tác thay đổi trên UI (rollback optimistic update nếu có).
-- Nguyên tắc chung: **không ẩn hoàn toàn** các hành động bị chặn — luôn hiển thị ở trạng thái disabled kèm lý do rõ ràng (tooltip/ghi chú), để ADMIN hiểu tại sao, thay vì biến mất khó hiểu.
+> **CẬP NHẬT 2026-10-19 (đã xác nhận, thay thế toàn bộ mô tả "disabled
+> trước" dưới đây)**: Giống điểm đã ghi ở S7c, `GET /admin/users`/
+> `GET /account/me` không trả thông tin "ai là ADMIN duy nhất" — FE
+> **không có cách nào biết trước** để tự `disabled` nút như 2 mục đầu bên
+> dưới mô tả (LLD Frontend Phase 2, mục "Rủi ro" #4). Hành vi THẬT đã
+> code: nút "Khóa" và lựa chọn "USER" trong dialog đổi vai trò LUÔN
+> enable cho MỌI dòng (kể cả dòng của chính ADMIN đang đăng nhập) — lỗi
+> `409 LAST_ADMIN_RULE_VIOLATION` chỉ xuất hiện SAU khi submit, dưới dạng
+> bannerError NGAY TRONG dialog tương ứng (dialog giữ mở). Mục thứ 3 dưới
+> đây (hạ cấp 1 trong 2 ADMIN cuối, race-condition) vẫn đúng và xử lý
+> theo đúng cùng cách (bannerError sau submit), không có gì thay đổi
+> ngoài việc **không còn "tooltip disabled trước" cho 2 trường hợp đầu**.
+
+- ~~**Tự khóa chính mình khi là ADMIN duy nhất**: nút "Khóa" tại dòng chính ADMIN đang đăng nhập **disabled kèm tooltip**: "Không thể khóa: bạn là ADMIN duy nhất của hệ thống."~~ *(không còn áp dụng — xem cập nhật trên)*
+- ~~**Tự hạ cấp vai trò chính mình khi là ADMIN duy nhất**: trong dialog đổi vai trò tại dòng của chính mình, lựa chọn "USER" bị disabled kèm ghi chú: "Không thể hạ cấp: bạn là ADMIN duy nhất của hệ thống."~~ *(không còn áp dụng — xem cập nhật trên)*
+- **Hạ cấp một ADMIN khác khiến hệ thống còn 0 ADMIN**: nếu hệ thống chỉ còn đúng 2 ADMIN và admin đang thao tác chọn hạ cấp admin còn lại — về nguyên tắc thao tác này không tự thân vi phạm rule (đang thao tác vẫn còn là ADMIN), nên **cho phép ở UI**; nếu backend phát hiện tại thời điểm xử lý hệ thống sẽ còn 0 ADMIN (race-condition), hiển thị lỗi rõ ràng: "Không thể thực hiện: hành động này sẽ khiến hệ thống không còn ADMIN nào." (bannerError trong dialog — KHÔNG có optimistic update để rollback, vì FE chỉ cập nhật UI sau khi có response thành công, xem LLD Phase 2).
+- Nguyên tắc chung (vẫn đúng): **không ẩn hoàn toàn** các hành động bị chặn — hành động luôn khả dụng để bấm, lỗi (nếu có) luôn hiển thị rõ ràng ngay sau khi submit, không biến mất khó hiểu.
 
 #### Trạng thái truy cập bị từ chối (REQ-RBAC-002 AC1 — USER cố truy cập trang admin)
 

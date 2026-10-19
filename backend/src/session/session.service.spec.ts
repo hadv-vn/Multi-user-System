@@ -34,6 +34,7 @@ function createService(): { service: SessionService; mocks: Mocks } {
       findById: vi.fn(),
       revokeById: vi.fn(),
       revokeAllActiveForUser: vi.fn(),
+      deleteExpired: vi.fn(),
     },
     currentRoleReader: {
       getCurrentRoleName: vi.fn(),

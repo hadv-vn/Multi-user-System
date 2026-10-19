@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 
 import { AuthenticatedUserContext } from '../../types/authenticated-user-context.interface.js';
+import { IS_PRODUCTION } from '../config/is-production.js';
 
 import { CSRF_COOKIE_NAME } from './csrf.constants.js';
 import { CsrfTokenService } from './csrf-token.service.js';
@@ -28,7 +29,7 @@ export class CsrfCookieIssuerInterceptor implements NestInterceptor {
       const token = this.csrfTokenService.deriveToken(request.authContext.sessionId);
       response.cookie(CSRF_COOKIE_NAME, token, {
         httpOnly: false,
-        secure: true,
+        secure: IS_PRODUCTION,
         sameSite: 'lax',
         path: '/',
       });

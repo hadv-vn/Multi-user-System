@@ -1,0 +1,72 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-neon-cyan: #22d3ee;
+  --color-neon-violet: #8b5cf6;
+  --color-neon-danger: #fb3a5d;
+  --color-neon-success: #34d399;
+  --color-neon-warning: #f5b942;
+  --color-surface-glass: rgb(15 23 42 / 0.55);
+  --color-border-glass: rgb(99 102 241 / 0.25);
+  --font-heading: var(--font-space-grotesk), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+}
+
+@layer base {
+  body {
+    background: linear-gradient(135deg, #05060f 0%, #0b1120 60%, #0a0f1f 100%);
+    color: #e2e8f0;
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-neon-cyan);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(255 255 255 / 0.08);
+  }
+
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.18) 50%,
+      transparent 100%
+    );
+    animation: skeleton-shimmer-sweep 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

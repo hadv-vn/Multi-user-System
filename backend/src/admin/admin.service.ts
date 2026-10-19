@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { RateLimitExceededException } from '../common/exceptions/rate-limit-exceeded.exception.js';
 import { PrismaService } from '../common/prisma/prisma.service.js';
+import { RATE_LIMITER, type RateLimiter } from '../common/rate-limit/rate-limiter.interface.js';
 import { LastAdminPolicyService } from '../rbac/last-admin-policy.service.js';
 import { ROLE_NAME, type RoleName } from '../rbac/role.constants.js';
 import { SessionService } from '../session/session.service.js';
@@ -12,6 +14,7 @@ import {
 } from './admin-results.interface.js';
 import { ConflictAccountDeactivatedException } from './exceptions/conflict-account-deactivated.exception.js';
 import { UserNotFoundException } from './exceptions/user-not-found.exception.js';
+import { ADMIN_LOCK_UNLOCK_RATE_LIMIT } from './rate-limit-policies.js';
 import {
   ADMIN_ACTION_LOG_REPOSITORY,
   ADMIN_ACTION_TYPE,
@@ -36,6 +39,7 @@ export class AdminService {
     private readonly adminActionLogRepository: AdminActionLogRepository,
     private readonly lastAdminPolicyService: LastAdminPolicyService,
     private readonly sessionService: SessionService,
+    @Inject(RATE_LIMITER) private readonly rateLimiter: RateLimiter,
   ) {}
 
   async listUsers(filter: ListUsersFilter): Promise<PaginatedAdminUserList> {
@@ -52,6 +56,7 @@ export class AdminService {
   }
 
   async lockUser(targetUserId: string, actorAdminId: string): Promise<AdminUserStatusResult> {
+    await this.consumeAdminActionRateLimit(actorAdminId);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.adminUserRepository.findTargetForModeration(tx, targetUserId);
       if (target === null) {
@@ -85,6 +90,7 @@ export class AdminService {
   }
 
   async unlockUser(targetUserId: string, actorAdminId: string): Promise<AdminUserStatusResult> {
+    await this.consumeAdminActionRateLimit(actorAdminId);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.adminUserRepository.findTargetForModeration(tx, targetUserId);
       if (target === null) {
@@ -155,5 +161,24 @@ export class AdminService {
 
       return { id: target.id, role: newRole };
     });
+  }
+
+  /**
+   * T10 — rate-limit nhẹ theo ACTOR admin (không theo IP, vì đây là hành
+   * động của người đã xác thực) để hạn chế thiệt hại nếu 1 phiên ADMIN bị
+   * compromise spam khóa/mở khóa hàng loạt.
+   */
+  private async consumeAdminActionRateLimit(actorAdminId: string): Promise<void> {
+    const result = await this.rateLimiter.consume(
+      `admin-lock-unlock:${actorAdminId}`,
+      ADMIN_LOCK_UNLOCK_RATE_LIMIT,
+    );
+    if (!result.allowed) {
+      throw new RateLimitExceededException(
+        'ADMIN_LOCK_UNLOCK_RATE_LIMITED',
+        'Quá nhiều hành động khóa/mở khóa trong thời gian ngắn. Vui lòng thử lại sau.',
+        result.retryAfterSeconds,
+      );
+    }
   }
 }

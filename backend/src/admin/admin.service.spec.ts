@@ -3,7 +3,9 @@
  * method của object mock (vd `expect(mocks.x.method).toHaveBeenCalledWith(...)`,
  * `vi.mocked(mocks.x.method)`) để assert — các method này là `vi.fn()`
  * không dùng `this`, không có rủi ro mất ngữ cảnh `this` thật như rule giả định. */
+import { RateLimitExceededException } from '../common/exceptions/rate-limit-exceeded.exception.js';
 import type { PrismaService } from '../common/prisma/prisma.service.js';
+import type { RateLimiter } from '../common/rate-limit/rate-limiter.interface.js';
 import type { LastAdminPolicyService } from '../rbac/last-admin-policy.service.js';
 import { ROLE_NAME } from '../rbac/role.constants.js';
 import type { SessionService } from '../session/session.service.js';
@@ -36,6 +38,7 @@ interface Mocks {
   adminActionLogRepository: AdminActionLogRepository;
   lastAdminPolicyService: LastAdminPolicyService;
   sessionService: SessionService;
+  rateLimiter: RateLimiter;
 }
 
 function createService(): { service: AdminService; mocks: Mocks } {
@@ -58,6 +61,11 @@ function createService(): { service: AdminService; mocks: Mocks } {
     sessionService: {
       revokeAllSessionsForUser: vi.fn().mockResolvedValue(undefined),
     } as unknown as SessionService,
+    rateLimiter: {
+      consume: vi
+        .fn()
+        .mockResolvedValue({ allowed: true, remainingAttempts: 29, retryAfterSeconds: 0 }),
+    },
   };
 
   const service = new AdminService(
@@ -66,6 +74,7 @@ function createService(): { service: AdminService; mocks: Mocks } {
     mocks.adminActionLogRepository,
     mocks.lastAdminPolicyService,
     mocks.sessionService,
+    mocks.rateLimiter,
   );
 
   return { service, mocks };
@@ -189,6 +198,20 @@ describe('AdminService', () => {
       expect(updateStatusOrder).toBeLessThan(recordOrder);
       expect(recordOrder).toBeLessThan(revokeOrder);
     });
+
+    it('vượt rate-limit (T10) → RateLimitExceededException, KHÔNG chạm transaction', async () => {
+      const { service, mocks } = createService();
+      vi.mocked(mocks.rateLimiter.consume).mockResolvedValue({
+        allowed: false,
+        remainingAttempts: 0,
+        retryAfterSeconds: 120,
+      });
+
+      await expect(service.lockUser('target-user-id', 'admin-actor')).rejects.toBeInstanceOf(
+        RateLimitExceededException,
+      );
+      expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    });
   });
 
   describe('unlockUser', () => {
@@ -248,6 +271,20 @@ describe('AdminService', () => {
         newValue: 'ACTIVE',
       });
       expect(mocks.sessionService.revokeAllSessionsForUser).not.toHaveBeenCalled();
+    });
+
+    it('vượt rate-limit (T10) → RateLimitExceededException, KHÔNG chạm transaction', async () => {
+      const { service, mocks } = createService();
+      vi.mocked(mocks.rateLimiter.consume).mockResolvedValue({
+        allowed: false,
+        remainingAttempts: 0,
+        retryAfterSeconds: 120,
+      });
+
+      await expect(service.unlockUser('target-user-id', 'admin-actor')).rejects.toBeInstanceOf(
+        RateLimitExceededException,
+      );
+      expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

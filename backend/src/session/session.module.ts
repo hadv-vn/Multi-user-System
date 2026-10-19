@@ -4,6 +4,7 @@ import { CURRENT_ROLE_READER } from './current-role-reader.interface.js';
 import { PrismaCurrentRoleReader } from './prisma-current-role.reader.js';
 import { PrismaSessionRepository } from './prisma-session.repository.js';
 import { PrismaUserStatusReader } from './prisma-user-status.reader.js';
+import { SessionCleanupJob } from './session-cleanup.job.js';
 import { SESSION_REPOSITORY } from './session-repository.interface.js';
 import { SessionService } from './session.service.js';
 import { USER_STATUS_READER } from './user-status-reader.interface.js';
@@ -14,6 +15,7 @@ import { USER_STATUS_READER } from './user-status-reader.interface.js';
     { provide: CURRENT_ROLE_READER, useClass: PrismaCurrentRoleReader },
     { provide: USER_STATUS_READER, useClass: PrismaUserStatusReader },
     SessionService,
+    SessionCleanupJob,
   ],
   exports: [SessionService],
 })

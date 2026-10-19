@@ -13,6 +13,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 
+import { IS_PRODUCTION } from '../common/config/is-production.js';
 import { CurrentUser } from '../session/current-user.decorator.js';
 import { AuthGuard } from '../session/guards/auth.guard.js';
 import type { AuthenticatedUserContext } from '../types/authenticated-user-context.interface.js';
@@ -117,7 +118,7 @@ export class AuthController {
     const sameSite = this.configService.get<string>('SESSION_COOKIE_SAME_SITE') ?? 'lax';
     res.cookie(cookieName, sessionId, {
       httpOnly: true,
-      secure: true,
+      secure: IS_PRODUCTION,
       sameSite: sameSite as 'lax' | 'strict' | 'none',
       path: '/',
       maxAge: SESSION_COOKIE_MAX_AGE_MS,

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AccountModule } from './account/account.module.js';
 import { AdminModule } from './admin/admin.module.js';
@@ -13,6 +14,7 @@ import { RbacModule } from './rbac/rbac.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     CommonModule,
     AuthModule,

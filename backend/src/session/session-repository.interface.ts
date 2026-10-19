@@ -27,6 +27,8 @@ export interface SessionRepository {
    * như trước — dùng PrismaService singleton của SessionModule.
    */
   revokeAllActiveForUser(userId: string, tx?: PrismaTx): Promise<void>;
+  /** Xóa cứng mọi session đã hết hạn (P3-BE-01) — dọn bảng, không phải thu hồi. */
+  deleteExpired(now: Date): Promise<number>;
 }
 
 export const SESSION_REPOSITORY = Symbol('SessionRepository');

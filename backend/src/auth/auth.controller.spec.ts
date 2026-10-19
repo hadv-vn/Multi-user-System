@@ -6,6 +6,7 @@
 import type { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 
+import { IS_PRODUCTION } from '../common/config/is-production.js';
 import type { AuthenticatedUserContext } from '../types/authenticated-user-context.interface.js';
 
 import type {
@@ -156,7 +157,7 @@ describe('AuthController', () => {
         'session-abc',
         expect.objectContaining({
           httpOnly: true,
-          secure: true,
+          secure: IS_PRODUCTION,
           sameSite: 'lax',
           path: '/',
           maxAge: 7 * 24 * 60 * 60 * 1000,

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Phiên bản** | 1.1 (draft) — bổ sung mã lỗi `CSRF_TOKEN_INVALID` (mục 1.6.1) theo LLD Phase 2 |
-| **Trạng thái** | DRAFT — bản thiết kế contract, CHƯA implement, chưa chạy qua công cụ validate |
-| **Ngày tạo** | 2026-10-18 (cập nhật 2026-10-18 — bổ sung CSRF theo C‑14) |
+| **Phiên bản** | 1.2 (draft) — bổ sung mã lỗi `ADMIN_LOCK_UNLOCK_RATE_LIMITED` (mục 5.2/5.3, Phase 3 Hardening, T10); trước đó v1.1 bổ sung `CSRF_TOKEN_INVALID` (mục 1.6.1) theo LLD Phase 2 |
+| **Trạng thái** | DRAFT — bản thiết kế contract, đã implement một phần theo tiến độ (Phase 0–3 Backend) |
+| **Ngày tạo** | 2026-10-18 (cập nhật 2026-10-19 — bổ sung rate-limit Admin lock/unlock theo T10) |
 | **Nguồn tham chiếu** | `docs/requirements/srs-multi-user-system.md` (SRS v1.0), `docs/architecture/adr/0001-session-management-strategy.md` (ADR 0001 — server-side session, cookie httpOnly, không JWT), `docs/design/lld-phase2-rbac-account-admin.md` (LLD Phase 2 — nguồn quyết định cơ chế CSRF cụ thể ở mục 1.6.1) |
 | **Phạm vi** | REST contract cho 5 module: Auth, Session, Rbac (cross-cutting, không có endpoint riêng), Account, Admin |
 
@@ -537,6 +537,7 @@ Idempotent: nếu tài khoản mục tiêu đã `LOCKED` từ trước → vẫn
 | 404 | `USER_NOT_FOUND` | không tìm thấy tài khoản với `id` đó |
 | 409 | `CONFLICT_ACCOUNT_DEACTIVATED` | tài khoản mục tiêu đã `DEACTIVATED` (soft-delete), không áp dụng khóa lên tài khoản đã vô hiệu hóa |
 | 409 | `LAST_ADMIN_RULE_VIOLATION` | khóa tài khoản này sẽ khiến hệ thống không còn ADMIN nào đang hoạt động (C-3; bao gồm cả trường hợp tự khóa chính mình khi là ADMIN duy nhất — AC3) |
+| 429 | `ADMIN_LOCK_UNLOCK_RATE_LIMITED` | actor ADMIN gọi lock/unlock quá nhiều lần trong khoảng thời gian ngắn (T10, Phase 3 Hardening) — body kèm `retryAfterSeconds`, header `Retry-After`, key rate-limit theo actor admin (không theo IP) |
 | 500 | `INTERNAL_ERROR` | lỗi hệ thống |
 
 Ghi chú thiết kế:
@@ -565,6 +566,7 @@ Idempotent: nếu tài khoản đã `ACTIVE` → vẫn `200 OK`.
 | 403 | `CSRF_TOKEN_INVALID` | thiếu/sai cookie `csrfToken` hoặc header `X-CSRF-Token` — chỉ kiểm tra sau khi đã qua `FORBIDDEN` ở trên (xem 1.6.1) |
 | 404 | `USER_NOT_FOUND` | không tìm thấy tài khoản |
 | 409 | `CONFLICT_ACCOUNT_DEACTIVATED` | tài khoản mục tiêu đã `DEACTIVATED` — SRS giai đoạn 1 không định nghĩa flow "kích hoạt lại" tài khoản đã soft-delete, nên `unlock` không áp dụng lên `DEACTIVATED` (xem mục "Ngoài phạm vi") |
+| 429 | `ADMIN_LOCK_UNLOCK_RATE_LIMITED` | actor ADMIN gọi lock/unlock quá nhiều lần trong khoảng thời gian ngắn (T10, Phase 3 Hardening) — body kèm `retryAfterSeconds`, header `Retry-After`, key rate-limit theo actor admin (không theo IP) |
 | 500 | `INTERNAL_ERROR` | lỗi hệ thống |
 
 ---
