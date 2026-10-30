@@ -1,4 +1,13 @@
-import { IsIn, IsInt, IsString, IsUrl, Max, Min, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class EnvironmentVariables {
   @IsString()
@@ -8,6 +17,19 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   PORT!: number;
+
+  // Địa chỉ interface để lắng nghe. Bỏ trống = mọi interface. Khi chạy nhiều
+  // instance sau reverse proxy, đặt 127.0.0.1 để chỉ proxy truy cập được.
+  @IsOptional()
+  @IsString()
+  HOST?: string;
+
+  // Giá trị `trust proxy` của Express (vd. `loopback`). Bật khi chạy sau
+  // reverse proxy để `req.ip` lấy IP thật từ X-Forwarded-For — rate limit
+  // theo IP phụ thuộc vào giá trị này. Bỏ trống = không tin proxy nào.
+  @IsOptional()
+  @IsString()
+  TRUST_PROXY?: string;
 
   @IsString()
   CORS_ORIGIN!: string;
