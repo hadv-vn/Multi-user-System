@@ -28,7 +28,7 @@ for arg in "$@"; do
   esac
 done
 
-require_command npm "Cai Node.js 20+ (kem npm) truoc."
+require_supported_node
 
 LAN_IP=$(get_lan_ip || true)
 [ -n "$LAN_IP" ] || fail "Khong phat hien duoc IP LAN cua server (kiem tra 'ip addr')."
@@ -49,13 +49,13 @@ fi
 
 step "Kiem tra frontend/.env"
 if [ ! -f "$FRONTEND_DIR/.env" ]; then
-  sed -e "s#^NEXT_PUBLIC_API_BASE_URL=.*#NEXT_PUBLIC_API_BASE_URL=http://$LAN_IP:$PROXY_PORT/api/v1#" \
+  sed -e "s#^NEXT_PUBLIC_API_BASE_URL=.*#NEXT_PUBLIC_API_BASE_URL=http://$LAN_IP:$BACKEND_PORT/api/v1#" \
     "$FRONTEND_DIR/.env.example" > "$FRONTEND_DIR/.env"
-  warn "Da tao frontend/.env voi API http://$LAN_IP:$PROXY_PORT/api/v1."
+  warn "Da tao frontend/.env voi API http://$LAN_IP:$BACKEND_PORT/api/v1."
 else
   echo "Giu nguyen frontend/.env."
-  grep -q "$LAN_IP:$PROXY_PORT" "$FRONTEND_DIR/.env" ||
-    warn "frontend/.env khong tro toi http://$LAN_IP:$PROXY_PORT - kiem tra NEXT_PUBLIC_API_BASE_URL."
+  grep -q "$LAN_IP:$BACKEND_PORT" "$FRONTEND_DIR/.env" ||
+    warn "frontend/.env khong tro toi http://$LAN_IP:$BACKEND_PORT - kiem tra NEXT_PUBLIC_API_BASE_URL."
 fi
 
 if [ "$SKIP_INSTALL" = false ]; then

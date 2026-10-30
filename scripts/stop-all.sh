@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Dung frontend va moi instance backend cua Multi-User System.
+# Dung frontend va backend cua Multi-User System.
 #
 # Dung theo 2 lop: (1) cac nhom tien trinh da ghi trong .runtime/pids/
 # (do run-all.sh tao), (2) bat ky tien trinh nao con lang nghe o cong
-# frontend (3000) hoac backend (8081-8089), ke ca tien trinh chay tay.
-# Gui SIGTERM truoc, het thoi gian cho moi gui SIGKILL. Khong dung nginx.
+# frontend (8080) hoac backend (8081), ke ca tien trinh chay tay.
+# Gui SIGTERM truoc, het thoi gian cho moi gui SIGKILL.
 #
 # Su dung:
 #   ./scripts/stop-all.sh
@@ -69,4 +69,4 @@ remaining=$(busy_managed_ports)
 if [ -n "$remaining" ]; then
   fail "Khong giai phong duoc cong: $(echo $remaining) (co the do user khac chay - thu voi sudo)."
 fi
-echo "Da dung tat ca. Cac cong $FRONTEND_PORT, $(backend_port 1)-$(backend_port "$MAX_BACKEND_INSTANCES") deu trong."
+echo "Da dung tat ca. Cac cong $FRONTEND_PORT, $BACKEND_PORT deu trong."

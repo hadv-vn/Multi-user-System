@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Khoi dong toan bo Multi-User System (ban build production) o che do nen:
-#   - N instance backend o 127.0.0.1:8081..(8080+N), sau nginx o cong 8080
-#   - frontend (Next.js) o 0.0.0.0:3000
+# Khoi dong toan bo Multi-User System (ban build production) o che do nen,
+# dung 1 backend + 1 frontend:
+#   - backend (NestJS) o 0.0.0.0:8081
+#   - frontend (Next.js) o 0.0.0.0:8080
 #
 # Truoc khi chay, script goi stop-all.sh de dung moi tien trinh cu, roi
 # (tuy chon) build, chay migration + seed. Log nam o .runtime/logs/, dung
 # bang ./scripts/stop-all.sh.
 #
 # Su dung:
-#   ./scripts/run-all.sh [--backends N] [--build] [--skip-migrate]
-#     --backends N    so instance backend, 1-9 (mac dinh 3)
+#   ./scripts/run-all.sh [--build] [--skip-migrate]
 #     --build         goi build-all.sh truoc khi chay
 #     --skip-migrate  bo qua prisma migrate deploy + seed
 
@@ -22,25 +22,19 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 readonly STARTUP_TIMEOUT_SECONDS=60
 
-BACKEND_COUNT=3
 RUN_BUILD=false
 SKIP_MIGRATE=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --backends)
-      [[ "${2:-}" =~ ^[1-9]$ ]] || fail "--backends can mot so tu 1 den $MAX_BACKEND_INSTANCES."
-      BACKEND_COUNT="$2"
-      shift
-      ;;
     --build) RUN_BUILD=true ;;
     --skip-migrate) SKIP_MIGRATE=true ;;
-    *) fail "Tham so khong hop le: $1 (ho tro --backends N, --build, --skip-migrate)" ;;
+    *) fail "Tham so khong hop le: $1 (ho tro --build, --skip-migrate)" ;;
   esac
   shift
 done
 
-require_command npm "Cai Node.js 20+ (kem npm) truoc."
+require_supported_node
 
 "$SCRIPT_DIR/stop-all.sh"
 
@@ -87,20 +81,17 @@ wait_for_port() {
   return 1
 }
 
-step "Khoi dong $BACKEND_COUNT instance backend"
-for i in $(seq 1 "$BACKEND_COUNT"); do
-  port=$(backend_port "$i")
-  start_detached "backend-$port" "$BACKEND_DIR" \
-    env PORT="$port" HOST=127.0.0.1 TRUST_PROXY=loopback npm run start:prod
-done
+step "Khoi dong backend"
+start_detached "backend-$BACKEND_PORT" "$BACKEND_DIR" \
+  env PORT="$BACKEND_PORT" npm run start:prod
 
 step "Khoi dong frontend"
 start_detached "frontend-$FRONTEND_PORT" "$FRONTEND_DIR" \
-  npm run start -- -p "$FRONTEND_PORT"
+  npm run start
 
 step "Cho cac dich vu san sang (toi da ${STARTUP_TIMEOUT_SECONDS}s)"
 failed=false
-for port in $(seq "$(backend_port 1)" "$(backend_port "$BACKEND_COUNT")") "$FRONTEND_PORT"; do
+for port in $(managed_ports); do
   if wait_for_port "$port"; then
     echo "[ok] cong $port"
   else
@@ -109,13 +100,10 @@ for port in $(seq "$(backend_port 1)" "$(backend_port "$BACKEND_COUNT")") "$FRON
   fi
 done
 
-is_port_busy "$PROXY_PORT" ||
-  warn "Chua co gi lang nghe o cong $PROXY_PORT - cai nginx voi deploy/nginx/multi-user-system.conf."
-
 LAN_IP=$(get_lan_ip || true)
 echo ""
 echo "Frontend: http://${LAN_IP:-<IP-server>}:$FRONTEND_PORT"
-echo "API:      http://${LAN_IP:-<IP-server>}:$PROXY_PORT/api/v1 (qua nginx)"
+echo "API:      http://${LAN_IP:-<IP-server>}:$BACKEND_PORT/api/v1"
 echo "Dung tat ca: ./scripts/stop-all.sh"
 
 [ "$failed" = false ] || exit 1

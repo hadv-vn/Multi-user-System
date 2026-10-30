@@ -11,9 +11,8 @@ readonly RUNTIME_DIR="$REPO_ROOT/.runtime"
 readonly LOG_DIR="$RUNTIME_DIR/logs"
 readonly PID_DIR="$RUNTIME_DIR/pids"
 
-readonly FRONTEND_PORT=3000
-readonly PROXY_PORT=8080
-readonly MAX_BACKEND_INSTANCES=9
+readonly FRONTEND_PORT=8080  # phai khop "-p" trong frontend/package.json
+readonly BACKEND_PORT=8081   # phai khop PORT trong backend/.env
 readonly STOP_TIMEOUT_SECONDS=10
 
 step() { echo -e "\n==> $1"; }
@@ -23,17 +22,9 @@ fail() {
   exit 1
 }
 
-# Cong cua instance backend thu i (1..9): 8081..8089.
-backend_port() {
-  echo $((PROXY_PORT + $1))
-}
-
-# Tat ca cong ma script quan ly (frontend + moi slot backend).
+# Cac cong ma script quan ly: 1 frontend + 1 backend.
 managed_ports() {
-  echo "$FRONTEND_PORT"
-  for i in $(seq 1 "$MAX_BACKEND_INSTANCES"); do
-    backend_port "$i"
-  done
+  echo "$FRONTEND_PORT" "$BACKEND_PORT"
 }
 
 get_lan_ip() {
@@ -63,4 +54,19 @@ is_db_reachable() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Chua cai '$1'. $2"
+}
+
+# Prisma va Next.js 16 can Node.js 20.19+, 22.12+ hoac 24+ (xem .nvmrc).
+require_supported_node() {
+  require_command node "Cai Node.js 24 LTS (xem README, muc Yeu cau moi truong)."
+  local version major minor
+  version=$(node -v | sed 's/^v//')
+  major=${version%%.*}
+  minor=$(echo "$version" | cut -d. -f2)
+  if [ "$major" -ge 24 ] ||
+    { [ "$major" -eq 22 ] && [ "$minor" -ge 12 ]; } ||
+    { [ "$major" -eq 20 ] && [ "$minor" -ge 19 ]; }; then
+    return 0
+  fi
+  fail "Node.js v$version khong duoc ho tro (can 20.19+, 22.12+ hoac 24+). Cai Node 24 qua nvm: 'nvm install' trong thu muc repo (doc .nvmrc)."
 }
