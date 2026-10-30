@@ -29,3 +29,6 @@ backend/prisma/migrations/**/migration.sql.bak
 
 # Test coverage
 coverage/
+
+# Runtime (log + pid cua scripts/run-all.sh)
+.runtime/

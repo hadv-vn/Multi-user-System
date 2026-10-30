@@ -39,33 +39,39 @@ Xem đầy đủ tại [docs/design/hld-multi-user-system.md](docs/design/hld-mu
 
 ## Cài đặt & chạy nhanh
 
-### Cách 1 — dùng script có sẵn (khuyến nghị)
-
-**PowerShell (Windows):**
-
-```powershell
-./scripts/run-dev.ps1
-```
-
-**Bash (Git Bash / WSL / macOS / Linux):**
+### Cách 1 — dùng script có sẵn (khuyến nghị, Linux)
 
 ```bash
-./scripts/run-dev.sh
+./scripts/build-all.sh                 # build backend + frontend
+./scripts/run-all.sh --backends 3      # dừng tiến trình cũ, migrate, chạy nền
+./scripts/stop-all.sh                  # dừng tất cả
 ```
 
-Script sẽ tự động:
+| Script | Việc làm |
+|---|---|
+| `build-all.sh [--skip-install]` | Tạo `backend/.env`, `frontend/.env` từ `.env.example` nếu chưa có (tự điền IP LAN của server + `CSRF_SECRET` ngẫu nhiên), `npm install`, build backend và frontend. |
+| `run-all.sh [--backends N] [--build] [--skip-migrate]` | Gọi `stop-all.sh`, (tùy chọn) build, kiểm tra PostgreSQL, chạy migration + seed, rồi chạy nền N instance backend (mặc định 3) và frontend. Log ở `.runtime/logs/`. |
+| `stop-all.sh` | Dừng mọi tiến trình đang chiếm cổng frontend/backend (SIGTERM, quá 10 giây thì SIGKILL). |
 
-1. Tạo `backend/.env` từ `backend/.env.example` nếu chưa có (nhớ mở file
-   này và điền giá trị thật — đặc biệt `DATABASE_URL` và `CSRF_SECRET`).
-2. `npm install` cho toàn bộ workspace.
-3. Kiểm tra kết nối PostgreSQL theo `DATABASE_URL` (chỉ cảnh báo, không tự
-   cài hay khởi động Postgres thay bạn).
-4. Chạy migration (`prisma migrate deploy`) và seed role `USER`/`ADMIN`.
-5. Khởi động backend ở watch mode tại `http://localhost:3001`.
+Sơ đồ cổng:
 
-Tham số tùy chọn: `-SkipInstall`/`--skip-install` và
-`-SkipMigrate`/`--skip-migrate` để bỏ qua bước tương ứng khi không cần
-lặp lại.
+| Thành phần | Cổng | Mở firewall |
+|---|---|---|
+| Frontend (Next.js) | `3000` | Có |
+| nginx — API công khai | `8080` | Có |
+| Backend instance 1..N | `127.0.0.1:8081`–`8089` | Không |
+
+nginx cần cài một lần với cấu hình
+[`deploy/nginx/multi-user-system.conf`](deploy/nginx/multi-user-system.conf):
+
+```bash
+sudo cp deploy/nginx/multi-user-system.conf /etc/nginx/conf.d/
+sudo nginx -t && sudo systemctl reload nginx
+sudo ufw allow 3000/tcp && sudo ufw allow 8080/tcp
+```
+
+`NEXT_PUBLIC_API_BASE_URL` được nhúng vào frontend lúc build — đổi giá trị
+này thì phải chạy lại `build-all.sh`.
 
 ### Cách 2 — chạy từng bước thủ công
 
@@ -114,7 +120,8 @@ backend/        NestJS backend (API, Prisma schema & migrations)
     common/     Hạ tầng chung (Prisma, CSRF, rate-limit, exception filter)
   prisma/       Schema + migration + seed
 docs/            Tài liệu SDLC: requirements, architecture, design, security, testing, progress
-scripts/         Script tiện ích (chạy môi trường dev)
+scripts/         Script build / chạy / dừng hệ thống
+deploy/nginx/    Cấu hình reverse proxy nginx (cổng 8080 → backend 8081-8089)
 ```
 
 ## Tài liệu liên quan
