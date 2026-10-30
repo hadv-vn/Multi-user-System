@@ -32,3 +32,6 @@ coverage/
 
 # Runtime (log + pid cua scripts/run-all.sh)
 .runtime/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
