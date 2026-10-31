@@ -94,6 +94,22 @@ sudo ufw allow 8080/tcp && sudo ufw allow 8081/tcp
 `NEXT_PUBLIC_API_BASE_URL` được nhúng vào frontend lúc build — đổi giá trị
 này thì phải chạy lại `build-all.sh`.
 
+### Tài khoản admin mặc định
+
+`npm run db:seed` (được `run-all.sh` gọi mỗi lần chạy) tạo một tài khoản
+**ADMIN** đã xác thực email từ 2 biến trong `backend/.env`:
+
+```
+SEED_ADMIN_EMAIL=admin@gmail.com
+SEED_ADMIN_PASSWORD=<mật khẩu>
+```
+
+- Chỉ tạo khi email chưa tồn tại — chạy seed lại không ghi đè mật khẩu đã
+  đổi trên giao diện. Muốn đặt lại, đổi mật khẩu ở trang Hồ sơ.
+- Mật khẩu phải đạt quy tắc chung (≥ 8 ký tự, có chữ cái và chữ số).
+- Không ghi mật khẩu thật vào `.env.example` (file này được commit lên git).
+  Bỏ trống một trong hai biến thì seed bỏ qua bước tạo admin.
+
 ### Cách 2 — chạy từng bước thủ công
 
 ```bash
