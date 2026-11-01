@@ -1,0 +1,23 @@
+# Build context la thu muc goc cua repo (npm workspaces dung chung
+# package-lock.json). Loai bo moi thu duoc tao lai trong image.
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/*.tsbuildinfo
+backend/src/generated
+
+# Bi mat va cau hinh may local — image chi nhan cau hinh qua bien moi truong.
+**/.env
+**/.env.*
+!**/.env.example
+!.env.docker.example
+
+.git
+.github
+.runtime
+.vscode
+.idea
+.claude
+docs
+*.md

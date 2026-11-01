@@ -1,0 +1,96 @@
+# Chay toan bo he thong bang Docker: PostgreSQL + Mailpit + migration/seed
+# + backend + frontend.
+#   cp .env.docker.example .env && docker compose up -d --build
+#
+# Frontend: http://${PUBLIC_HOST}:8080   Backend: http://${PUBLIC_HOST}:8081
+# Mailpit (xem email xac thuc/dat lai mat khau): http://${PUBLIC_HOST}:8025
+
+name: multi-user-system
+
+x-database-url: &database-url postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/multi_user_system?schema=public
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: multi_user_system
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d multi_user_system']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '8025:8025'
+    restart: unless-stopped
+
+  # Chay mot lan moi khi `up`: prisma migrate deploy + seed (idempotent).
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: build
+    working_dir: /app/backend
+    command: ['sh', '-c', 'npx prisma migrate deploy && npm run db:seed']
+    environment:
+      DATABASE_URL: *database-url
+      BCRYPT_SALT_ROUNDS: 12
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # Khong dat NODE_ENV=production: gia tri do bat cookie `secure`, trinh
+    # duyet se tu choi cookie qua HTTP thuong. Chi bat khi dat sau TLS.
+    environment:
+      DATABASE_URL: *database-url
+      PORT: 8081
+      CORS_ORIGIN: http://${PUBLIC_HOST:-localhost}:8080
+      APP_BASE_URL: http://${PUBLIC_HOST:-localhost}:8080
+      BCRYPT_SALT_ROUNDS: 12
+      SESSION_COOKIE_NAME: sid
+      SESSION_COOKIE_SAME_SITE: lax
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USER: ''
+      SMTP_PASSWORD: ''
+      SMTP_FROM_ADDRESS: no-reply@multi-user-system.local
+      CSRF_SECRET: ${CSRF_SECRET:?Set CSRF_SECRET in .env}
+    ports:
+      - '8081:8081'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://${PUBLIC_HOST:-localhost}:8081/api/v1
+        NEXT_PUBLIC_SESSION_COOKIE_NAME: sid
+    ports:
+      - '8080:8080'
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

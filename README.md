@@ -110,7 +110,38 @@ SEED_ADMIN_PASSWORD=<mật khẩu>
 - Không ghi mật khẩu thật vào `.env.example` (file này được commit lên git).
   Bỏ trống một trong hai biến thì seed bỏ qua bước tạo admin.
 
-### Cách 2 — chạy từng bước thủ công
+### Cách 2 — Docker Compose (không cần cài Node/PostgreSQL)
+
+Cần Docker Engine + plugin Compose v2. Compose dựng sẵn PostgreSQL, Mailpit
+(SMTP sandbox), chạy migration + seed, rồi chạy backend và frontend.
+
+```bash
+cp .env.docker.example .env      # điền POSTGRES_PASSWORD, CSRF_SECRET, SEED_ADMIN_PASSWORD
+docker compose up -d --build     # build image + chạy nền
+docker compose logs -f backend   # xem log
+docker compose down              # dừng (thêm -v để xóa luôn dữ liệu Postgres)
+```
+
+| Dịch vụ | Địa chỉ |
+|---|---|
+| Frontend | `http://<PUBLIC_HOST>:8080` |
+| Backend API | `http://<PUBLIC_HOST>:8081/api/v1` |
+| Mailpit (xem email gửi đi) | `http://<PUBLIC_HOST>:8025` |
+
+- `PUBLIC_HOST` trong `.env` (mặc định `localhost`) quyết định `CORS_ORIGIN`,
+  `APP_BASE_URL` và URL API nhúng vào frontend. Muốn truy cập từ máy khác
+  trong LAN, đặt `PUBLIC_HOST` là IP của server rồi chạy lại
+  `docker compose up -d --build`.
+- Dùng cổng 8080/8081 giống `run-all.sh` — chạy `./scripts/stop-all.sh`
+  trước nếu hệ thống chạy trực tiếp đang bật.
+- Dữ liệu Postgres nằm trong volume `postgres-data`, độc lập với Postgres
+  cài trên máy.
+- Image chỉ chứa dependency production và chạy bằng user `node`. File
+  Dockerfile: [backend/Dockerfile](backend/Dockerfile),
+  [frontend/Dockerfile](frontend/Dockerfile) (build context là thư mục gốc
+  repo vì dùng chung `package-lock.json`).
+
+### Cách 3 — chạy từng bước thủ công
 
 ```bash
 # 1. Cài dependency
@@ -217,6 +248,17 @@ npm run test --workspace=backend          # unit test (vitest)
 npm run test:cov --workspace=backend       # unit test + coverage
 npm run test:e2e --workspace=backend       # test e2e (cần backend/.env hợp lệ)
 ```
+
+### CI
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) chạy trên mỗi push vào
+`master` và mỗi pull request, gồm 3 job:
+
+| Job | Việc làm |
+|---|---|
+| `lint-test-build` | `npm ci`, lint, unit test, build backend + frontend |
+| `e2e` | Dựng PostgreSQL service, migrate + seed, chạy `test:e2e` của backend |
+| `docker` | `docker compose build` + `up`, đợi `/health` và `/login` trả về OK |
 
 ## Cấu trúc thư mục chính
 

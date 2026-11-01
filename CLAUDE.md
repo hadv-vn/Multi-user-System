@@ -2,13 +2,77 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status
+## Overview
 
-This repository is currently empty — no code, configuration, or documentation has been added yet. There are no build, lint, or test commands to document, and no architecture to describe.
+Multi-user web system: registration, email verification, login, password reset, server-side sessions, and role-based access control (USER/ADMIN). npm-workspaces monorepo with `backend/` (NestJS + Prisma + PostgreSQL) and `frontend/` (Next.js App Router + Tailwind CSS). Node 20.19+/22.12+/24+ (`.nvmrc` pins 24). The repo is also meant to serve as a base for future systems, so keep the core modules generic and add new business features as new modules.
 
-When this project is initialized (e.g. framework chosen, source files added, git repo set up), update this file with:
-- Build / run / lint / test commands (including how to run a single test)
-- High-level architecture and major components
+## Commands
+
+Run from the repo root unless noted.
+
+| Task | Command |
+|---|---|
+| Install | `npm install` (backend `postinstall` runs `prisma generate`) |
+| Lint everything | `npm run lint` |
+| Unit tests (backend only; frontend has none yet) | `npm test` |
+| Build everything | `npm run build` (frontend build needs `NEXT_PUBLIC_API_BASE_URL`) |
+| Backend dev server (port 8081) | `npm run start:dev --workspace=backend` |
+| Frontend dev server (port 8080) | `npm run dev --workspace=frontend` |
+| Single test file | `cd backend && npx vitest run src/auth/auth.service.spec.ts` |
+| Single test by name | `cd backend && npx vitest run -t "chuẩn hóa email"` |
+| Backend coverage | `npm run test:cov --workspace=backend` |
+| Backend e2e (needs a real Postgres) | `npm run test:e2e --workspace=backend` |
+| Apply migrations / seed | `npm run db:migrate --workspace=backend` / `npm run db:seed --workspace=backend` |
+| New migration (dev) | `cd backend && npx prisma migrate dev --name <snake_case_name>` |
+| Format | `npm run format --workspace=backend` / `--workspace=frontend` |
+| Run whole stack natively | `./scripts/build-all.sh` then `./scripts/run-all.sh`; stop with `./scripts/stop-all.sh` |
+| Run whole stack in Docker | `cp .env.docker.example .env && docker compose up -d --build` |
+
+- Unit tests are `*.spec.ts` next to the source file; e2e tests are `backend/test/*.e2e-spec.ts` (Vitest, not Jest).
+- `backend/test/last-admin-race.e2e-spec.ts` temporarily locks every ACTIVE admin in the target database, so only run e2e against a disposable database.
+- CI (`.github/workflows/ci.yml`) runs lint + unit tests + build, backend e2e against a Postgres service, and a `docker compose` smoke test. Keep all three green.
+
+## Architecture
+
+### Backend (`backend/src`)
+
+Modular monolith with one NestJS module per bounded context, wired in `app.module.ts`:
+
+- `auth/`: register, login, email verification, forgot/reset password, account lockout after failed logins.
+- `session/`: server-side sessions stored in Postgres (no JWT, see `docs/architecture/adr/0001-session-management-strategy.md`), `AuthGuard`, `@CurrentUser()`, expired-session cleanup cron job.
+- `rbac/`: `RolesGuard` + `@Roles()` decorator, role names in `role.constants.ts`, `LastAdminPolicyService` (row lock prevents removing the last ACTIVE admin).
+- `account/`: own profile, change password, self-deactivate.
+- `admin/`: list users, lock/unlock, change role. Writes an append-only `AdminActionLog`.
+- `email/`: `EmailSender` interface (token `EMAIL_SENDER`), Nodemailer SMTP implementation.
+- `common/`: Prisma service, env validation, CSRF (double-submit cookie, `CsrfGuard`), in-memory rate limiter behind `RateLimiter` (token `RATE_LIMITER`), password hasher / token generator interfaces, `AllExceptionsFilter`.
+
+Conventions to follow when adding code:
+
+- **Repository pattern with DI tokens**: each module defines `*-repository.interface.ts` (interface + injection token constant) and a `prisma-*.repository.ts` implementation, bound in the module via `{ provide: TOKEN, useClass: PrismaX }`. Services depend on the token or interface for data access. Services inject `PrismaService` only to open a `$transaction`, then pass the `tx` (`common/prisma/prisma-transaction.type.ts`) into repository methods (see `admin.service.ts`).
+- **Errors**: business errors are classes in `<module>/exceptions/` that extend `common/exceptions/app.exception.ts` with a stable `errorCode`. `AllExceptionsFilter` maps them to the API error envelope defined in `docs/design/api-spec-multi-user-system.md`.
+- **Input**: DTOs in `<module>/dto/` validated by class-validator. The global `ValidationPipe` uses `whitelist` + `forbidNonWhitelisted`.
+- **Env vars**: every new variable must be declared in `common/config/environment-variables.ts` (validated at startup) and added to `backend/.env.example`, `compose.yaml`, and the CI e2e job env.
+- **ESM**: the backend is `"type": "module"`, so relative imports must end in `.js`.
+- **Prisma**: the client is generated into `src/generated/prisma` (gitignored). Models use camelCase mapped to snake_case tables and columns via `@map`/`@@map`. Value lists such as `users.status` and `admin_action_log.action_type` are enforced by CHECK constraints in migration SQL.
+- **Routes**: `api/v1/<resource>`; `GET /health` is the liveness probe.
+- `NODE_ENV=production` turns on `secure` cookies. Only set it when serving over HTTPS.
+
+### Frontend (`frontend/src`)
+
+- **Next.js 16 differs from older versions.** Read `node_modules/next/dist/docs/` before writing Next code (see `frontend/AGENTS.md`). `src/proxy.ts` replaces `middleware.ts`. It only checks that the session cookie exists; real authorization stays on the backend.
+- `app/(public)/` holds the auth screens and `app/(authenticated)/` holds profile and admin, wrapped by the shell layout.
+- `features/<name>/{components,hooks}` contains feature UI and logic. `lib/<name>/*-api.ts` contains typed API clients built on `lib/http/` (`HttpClient` interface, CSRF-aware fetch client, API envelope types). `components/ui/` holds shared glassmorphism primitives; reuse them before creating new ones.
+- `NEXT_PUBLIC_*` values are read through `config/public-env.ts` and inlined at build time, so changing them requires a rebuild.
+
+### Adding a new business feature
+
+Backend: add a new `backend/src/<feature>/` module (controller, service, dto, exceptions, repository interface + Prisma implementation, `*.spec.ts`), a Prisma migration, and import the module in `app.module.ts`. Protect routes with `AuthGuard`/`RolesGuard`, and add `CsrfGuard` on state-changing routes, the same way as the existing controllers. Frontend: add `lib/<feature>/<feature>-api.ts`, `features/<feature>/`, and routes under `app/(authenticated)/`.
+
+### Docs and deployment
+
+- `docs/` holds the SDLC artifacts: SRS, HLD/LLD, data model, API spec, UI wireframes, threat model, test plan, ADRs, and progress. Update the relevant design doc when behavior changes.
+- Native deployment runs exactly one backend (8081) and one frontend (8080), because the rate limiter is in memory. Running multiple backend instances requires a shared `RateLimiter` implementation, such as one backed by Redis.
+- Docker: `backend/Dockerfile` and `frontend/Dockerfile` are multi-stage builds with the repo root as build context. `compose.yaml` runs postgres, mailpit (port 8025), a one-shot `migrate` service (migrate + seed), the backend, and the frontend. The settings live in the root `.env`, created from `.env.docker.example`.
 
 ## UI Design Principles
 
