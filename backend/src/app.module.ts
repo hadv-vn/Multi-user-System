@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
 import { validateEnvironment } from './common/config/validate-environment.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
+import { TaskModule } from './features/todo-task-module/task.module.js';
 import { RbacModule } from './rbac/rbac.module.js';
 
 @Module({
@@ -21,6 +22,9 @@ import { RbacModule } from './rbac/rbac.module.js';
     RbacModule,
     AccountModule,
     AdminModule,
+    // ToDo feature extension — xem backend/src/features/todo-task-module.
+    // KHÔNG phải module generic của Multi-user-System.
+    TaskModule,
   ],
   controllers: [AppController],
 })

@@ -36,6 +36,9 @@ model User {
   // Giai đoạn 2 — actor-tracking (C-15/T9), xem AdminActionLog bên dưới.
   adminActionLogsAsTarget AdminActionLog[] @relation("AdminActionLogTarget")
   adminActionLogsAsActor  AdminActionLog[] @relation("AdminActionLogActor")
+  // ToDo feature extension — xem backend/src/features/todo-task-module.
+  // KHÔNG phải quan hệ generic của Multi-user-System.
+  tasks                   Task[]
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
@@ -135,4 +138,25 @@ model AdminActionLog {
   @@index([performedByAdminId])
   @@index([performedAt(sort: Desc)])
   @@map("admin_action_log")
+}
+
+// --- ToDo feature extension — xem backend/src/features/todo-task-module.
+// KHÔNG phải model generic của Multi-user-System. status ∈ {'open','done'},
+// CHECK constraint thêm trực tiếp ở migration SQL (cùng cách users.status
+// / admin_action_log.action_type đã làm — Prisma schema không khai báo
+// CHECK theo danh sách giá trị cố định được).
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  status      String   @default("open") @db.VarChar(10)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("tasks")
 }
