@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { RoleBadge } from '@/components/ui/RoleBadge';
 import { StatusResultCard } from '@/components/ui/StatusResultCard';
@@ -17,13 +17,19 @@ import { UserSecurityCard } from './UserSecurityCard';
 
 export interface AdminUserDetailPageProps {
   userId: string;
+  /**
+   * Các thẻ bổ sung do feature module nghiệp vụ cung cấp (vd thống kê task
+   * của ToDo), ghép ở tầng route — giữ AdminModule lõi không phụ thuộc
+   * feature cụ thể. Chỉ hiện khi đã tải được user.
+   */
+  extraSections?: ReactNode;
 }
 
 const USERS_LIST_PATH = '/admin/users';
 const ACTION_BUTTON_CLASS =
   'rounded-lg border border-white/15 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-neon-cyan/50 hover:shadow-[0_0_12px_rgba(34,211,238,0.25)] disabled:cursor-not-allowed disabled:opacity-40';
 
-export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
+export function AdminUserDetailPage({ userId, extraSections }: AdminUserDetailPageProps) {
   const router = useRouter();
   const { viewState, retry, refresh } = useAdminUserDetail(userId);
   const [lockUnlockAction, setLockUnlockAction] = useState<LockUnlockAction | null>(null);
@@ -84,6 +90,8 @@ export function AdminUserDetailPage({ userId }: AdminUserDetailPageProps) {
         <UserAccountInfoCard user={user} />
         <UserSecurityCard user={user} />
       </div>
+
+      {extraSections}
 
       <LockUnlockConfirmDialog
         isOpen={lockUnlockAction !== null}
