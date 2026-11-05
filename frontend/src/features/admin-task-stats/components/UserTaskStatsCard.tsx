@@ -5,6 +5,7 @@ import { RingSpinner } from '@/components/ui/RingSpinner';
 import type { UserTaskStats } from '@/lib/admin-task-stats/admin-task-stats-api';
 import { formatDateTime } from '@/lib/utils/format-date-time';
 import { useUserTaskStats } from '../hooks/use-user-task-stats';
+import { TaskCompletionBar } from './TaskCompletionBar';
 import { TaskStatTile } from './TaskStatTile';
 
 export interface UserTaskStatsCardProps {
@@ -49,8 +50,6 @@ function TaskStatsContent({ stats }: { stats: UserTaskStats }) {
     return <p className="py-4 text-sm text-slate-400">Người dùng chưa tạo công việc nào.</p>;
   }
 
-  const donePercent = Math.round((stats.byStatus.done / stats.total) * 100);
-
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -60,22 +59,7 @@ function TaskStatsContent({ stats }: { stats: UserTaskStats }) {
         <TaskStatTile label="Tạo gần nhất" value={formatDateTime(stats.lastCreatedAt)} size="compact" />
       </div>
 
-      <div className="mt-4">
-        <div
-          role="progressbar"
-          aria-label="Tỉ lệ công việc hoàn thành"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={donePercent}
-          className="h-2 overflow-hidden rounded-full bg-white/10"
-        >
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-neon-cyan to-neon-success shadow-[0_0_10px_rgba(52,211,153,0.5)] transition-[width] duration-500 ease-out"
-            style={{ width: `${donePercent}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-xs text-slate-400">{donePercent}% hoàn thành</p>
-      </div>
+      <TaskCompletionBar done={stats.byStatus.done} total={stats.total} className="mt-4" />
     </>
   );
 }
