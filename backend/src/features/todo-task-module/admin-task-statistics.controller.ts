@@ -1,4 +1,12 @@
-import { Controller, Get, Param, ParseUUIDPipe, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 
 import { CsrfCookieIssuerInterceptor } from '../../common/csrf/csrf-cookie-issuer.interceptor.js';
 import { RolesGuard } from '../../rbac/guards/roles.guard.js';
@@ -6,6 +14,7 @@ import { ROLE_NAME } from '../../rbac/role.constants.js';
 import { Roles } from '../../rbac/roles.decorator.js';
 import { AuthGuard } from '../../session/guards/auth.guard.js';
 
+import { TaskStatisticsOverviewQueryDto } from './dto/task-statistics-overview-query.dto.js';
 import { UserTaskStatisticsRecord } from './repositories/task-statistics-record.interface.js';
 import { TaskStatisticsService } from './task-statistics.service.js';
 
@@ -14,14 +23,20 @@ import { TaskStatisticsService } from './task-statistics.service.js';
  * (SRS A-3, NFR-004). Nằm trong feature module ToDo để AdminModule lõi
  * không phụ thuộc vào nghiệp vụ Task.
  */
-@Controller('api/v1/admin/users')
+@Controller('api/v1/admin')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(ROLE_NAME.ADMIN)
 @UseInterceptors(CsrfCookieIssuerInterceptor)
 export class AdminTaskStatisticsController {
   constructor(private readonly taskStatisticsService: TaskStatisticsService) {}
 
-  @Get(':id/task-stats')
+  @Get('task-stats')
+  async getOverview(@Query() query: TaskStatisticsOverviewQueryDto) {
+    const { summary, items, meta } = await this.taskStatisticsService.getOverview(query);
+    return { data: { summary, items }, meta };
+  }
+
+  @Get('users/:id/task-stats')
   async getUserTaskStatistics(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ data: UserTaskStatisticsRecord }> {

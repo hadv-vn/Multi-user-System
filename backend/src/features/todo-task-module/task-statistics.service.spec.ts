@@ -8,6 +8,7 @@ import { TaskStatisticsService } from './task-statistics.service.js';
 function createService(result: UserTaskStatisticsRecord | null) {
   const repository: TaskStatisticsRepository = {
     findUserStatistics: vi.fn().mockResolvedValue(result),
+    findOverview: vi.fn(),
   };
   return { service: new TaskStatisticsService(repository), repository };
 }
@@ -32,5 +33,38 @@ describe('TaskStatisticsService.getUserStatistics', () => {
     await expect(service.getUserStatistics('missing-id')).rejects.toBeInstanceOf(
       TaskStatisticsUserNotFoundException,
     );
+  });
+});
+
+describe('TaskStatisticsService.getOverview', () => {
+  it('ghép summary/items và tính meta phân trang (totalPages = ceil)', async () => {
+    const { service, repository } = createService(null);
+    const summary = { total: 14, byStatus: { open: 10, done: 4 } };
+    const items = [
+      { userId: 'user-a', email: 'a@example.com', total: 5, byStatus: { open: 3, done: 2 } },
+    ];
+    vi.mocked(repository.findOverview).mockResolvedValue({ summary, items, totalItems: 41 });
+
+    const result = await service.getOverview({ page: 2, limit: 20, email: 'a' });
+
+    expect(repository.findOverview).toHaveBeenCalledWith({ page: 2, limit: 20, email: 'a' });
+    expect(result).toEqual({
+      summary,
+      items,
+      meta: { page: 2, limit: 20, totalItems: 41, totalPages: 3 },
+    });
+  });
+
+  it('không có user nào → totalPages = 0', async () => {
+    const { service, repository } = createService(null);
+    vi.mocked(repository.findOverview).mockResolvedValue({
+      summary: { total: 0, byStatus: { open: 0, done: 0 } },
+      items: [],
+      totalItems: 0,
+    });
+
+    const result = await service.getOverview({ page: 1, limit: 20 });
+
+    expect(result.meta.totalPages).toBe(0);
   });
 });
