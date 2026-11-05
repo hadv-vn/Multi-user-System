@@ -17,6 +17,7 @@ import type { AdminActionLogRepository } from './repositories/admin-action-log-r
 import { ADMIN_ACTION_TYPE } from './repositories/admin-action-log-repository.interface.js';
 import type {
   AdminTargetUserRecord,
+  AdminUserDetailRecord,
   ListUsersResult,
 } from './repositories/admin-user-record.interface.js';
 import type { AdminUserRepository } from './repositories/admin-user-repository.interface.js';
@@ -48,6 +49,7 @@ function createService(): { service: AdminService; mocks: Mocks } {
     } as unknown as PrismaService,
     adminUserRepository: {
       findManyWithFilters: vi.fn(),
+      findDetailById: vi.fn(),
       findTargetForModeration: vi.fn().mockResolvedValue(createTargetRecord()),
       updateStatus: vi.fn().mockResolvedValue(undefined),
       changeUserRole: vi.fn().mockResolvedValue(undefined),
@@ -81,6 +83,41 @@ function createService(): { service: AdminService; mocks: Mocks } {
 }
 
 describe('AdminService', () => {
+  describe('getUserDetail', () => {
+    const NOW = new Date('2026-11-05T00:00:00.000Z');
+
+    it('trả về chi tiết user và truyền `now` xuống repository', async () => {
+      const { service, mocks } = createService();
+      const detail: AdminUserDetailRecord = {
+        id: 'target-user-id',
+        email: 'user@example.com',
+        name: null,
+        role: ROLE_NAME.USER,
+        status: 'ACTIVE',
+        emailVerifiedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+        activeSessionCount: 1,
+        lastLoginAt: NOW,
+      };
+      vi.mocked(mocks.adminUserRepository.findDetailById).mockResolvedValue(detail);
+
+      await expect(service.getUserDetail('target-user-id', NOW)).resolves.toEqual(detail);
+      expect(mocks.adminUserRepository.findDetailById).toHaveBeenCalledWith('target-user-id', NOW);
+    });
+
+    it('user không tồn tại → UserNotFoundException', async () => {
+      const { service, mocks } = createService();
+      vi.mocked(mocks.adminUserRepository.findDetailById).mockResolvedValue(null);
+
+      await expect(service.getUserDetail('missing-id', NOW)).rejects.toBeInstanceOf(
+        UserNotFoundException,
+      );
+    });
+  });
+
   describe('listUsers', () => {
     it('tính đúng totalPages = ceil(totalItems/limit)', async () => {
       const { service, mocks } = createService();

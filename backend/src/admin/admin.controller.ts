@@ -40,6 +40,12 @@ export class AdminController {
     return { data: result.items, meta: result.meta };
   }
 
+  @Get('users/:id')
+  async getUser(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.adminService.getUserDetail(id);
+    return { data };
+  }
+
   @Post('users/:id/lock')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)

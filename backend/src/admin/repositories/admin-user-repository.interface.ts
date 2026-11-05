@@ -3,6 +3,7 @@ import type { RoleName } from '../../rbac/role.constants.js';
 
 import {
   AdminTargetUserRecord,
+  AdminUserDetailRecord,
   ListUsersFilter,
   ListUsersResult,
 } from './admin-user-record.interface.js';
@@ -13,6 +14,8 @@ import {
  */
 export interface AdminUserRepository {
   findManyWithFilters(params: ListUsersFilter): Promise<ListUsersResult>;
+  /** `now` dùng để xác định phiên còn hiệu lực (chưa hết hạn). */
+  findDetailById(userId: string, now: Date): Promise<AdminUserDetailRecord | null>;
   /** Đọc TRONG transaction, ngay trước bước mutate — tránh đọc "stale" ngoài transaction. */
   findTargetForModeration(tx: PrismaTx, userId: string): Promise<AdminTargetUserRecord | null>;
   updateStatus(tx: PrismaTx, userId: string, newStatus: string): Promise<void>;
