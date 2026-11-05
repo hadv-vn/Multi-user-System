@@ -2,7 +2,7 @@
 ---
 progress_tracker: true
 source: docs/design/hld-multi-user-system.md (mục "Phase breakdown (input cho low-level-designer)")
-last_updated: 2026-10-19 (Frontend Phase 3 hoàn thành — toàn bộ dự án 50/50, 100%)
+last_updated: 2026-11-05 (bổ sung REQ-ADMIN-004 — chi tiết tài khoản cho ADMIN, 52/52, 100%)
 ---
 
 # Theo dõi tiến độ: Multi-User System (Auth/RBAC)
@@ -23,17 +23,17 @@ là đã xong.
 
 ## Thống kê tổng quan
 
-- Tổng số hạng mục (Backend + Frontend, cả 4 phase): 50
-- Hoàn thành: 50 (100.0%)
+- Tổng số hạng mục (Backend + Frontend, 4 phase + mở rộng): 52
+- Hoàn thành: 52 (100.0%)
 - Đang làm: 0 (0.0%)
 - Chưa bắt đầu: 0 (0.0%)
 
 ### Theo track
-- Backend: 38/38 hoàn thành (100.0%) — Phase 0–3 đã code/quyết định xong.
+- Backend: 39/39 hoàn thành (100.0%) — Phase 0–3 đã code/quyết định xong.
   `P3-BE-02`/`P3-BE-04` tính là "Hoàn thành" ở nghĩa **đã ra quyết định rõ
   ràng kèm lý do** (không triển khai), không phải code mới — xem ghi chú
   tại từng mục.
-- Frontend: 12/12 hoàn thành (100.0%) — Phase 0 (Next.js scaffold +
+- Frontend: 13/13 hoàn thành (100.0%) — Phase 0 (Next.js scaffold +
   Tailwind), Phase 1 (màn hình S1–S6), Phase 2 (S7–S9), và Phase 3 (UI
   polish, `P3-FE-01`) đã code xong (cập nhật 2026-10-19).
 
@@ -45,6 +45,7 @@ là đã xong.
 | Phase 1 — Auth + Session | 14/14 | 100.0% | 6/6 | 100.0% | 20/20 | 100.0% |
 | Phase 2 — RBAC + Account + Admin | 10/10 | 100.0% | 3/3 | 100.0% | 13/13 | 100.0% |
 | Phase 3 — Hardening + UI polish | 5/5 | 100.0% | 1/1 | 100.0% | 6/6 | 100.0% |
+| Mở rộng — REQ-ADMIN-004 (2026-11-05) | 1/1 | 100.0% | 1/1 | 100.0% | 2/2 | 100.0% |
 
 ## Checklist chi tiết
 
@@ -331,3 +332,29 @@ là đã xong.
     bằng trình duyệt/screenshot thật** (không có công cụ browser trong
     sandbox này) — chỉ xác nhận ở mức biên dịch/kiểu/lint, giống giới hạn
     đã ghi nhận ở Phase 0–2.
+
+### Mở rộng sau Phase 3: REQ-ADMIN-004 — Chi tiết tài khoản cho ADMIN (2026-11-05)
+
+> Yêu cầu bổ sung sau khi dự án đạt 100%. Đặc tả: SRS REQ-ADMIN-004,
+> `api-spec` mục 5.5, `ui-wireframes` S8b. Phần thống kê task gắn vào
+> trang này thuộc feature ToDo — theo dõi ở tài liệu của repo ToDo, không
+> tính vào file này.
+
+#### Backend
+- [x] P4-BE-01 `GET /api/v1/admin/users/:id` — `AdminController.getUser`,
+  `AdminService.getUserDetail` (404 `USER_NOT_FOUND`),
+  `PrismaAdminUserRepository.findDetailById` (Prisma `select` tường minh,
+  đếm phiên còn hiệu lực bằng `_count` có điều kiện, lần đăng nhập gần
+  nhất lấy từ phiên mới nhất — không cần migration). Test:
+  `admin.service.spec.ts` (+2), `prisma-admin-user.repository.spec.ts`
+  (5, gồm kiểm tra không select `passwordHash`/token/task). Đã chạy query
+  thật trên Postgres local (chỉ đọc) — Hoàn thành (cập nhật: 2026-11-05)
+
+#### Frontend
+- [x] P4-FE-01 Trang S8b `/admin/users/[id]` — `AdminUserDetailPage`,
+  `UserAccountInfoCard`, `UserSecurityCard`, `use-admin-user-detail`,
+  `AdminApi.getUser`; email ở bảng S8 thành link; tách
+  `AccountStatusIndicator` dùng chung cho S8/S8b; Sidebar chuyển sang
+  danh sách mục lọc theo role. `tsc --noEmit` và `eslint` sạch. **Chưa
+  chạy `next build` và chưa kiểm tra trực quan trên trình duyệt** — Hoàn
+  thành (code)/Chờ kiểm tra trực quan (cập nhật: 2026-11-05)
