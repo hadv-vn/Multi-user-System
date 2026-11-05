@@ -208,6 +208,16 @@ Hệ thống Multi-User System cần một module nền tảng để quản lý 
 - AC2 *(ràng buộc C-3 — last-admin rule)*: Given ADMIN đang là ADMIN duy nhất trong hệ thống, When ADMIN đó cố tự hạ cấp vai trò của chính mình, Then hệ thống chặn hành động này.
 - AC3 *(ràng buộc C-3 — last-admin rule)*: Given một ADMIN khác đang được hạ cấp, When thao tác được thực hiện, Then hệ thống chỉ cho phép nếu sau khi hạ cấp, hệ thống vẫn còn ít nhất 1 ADMIN; ngược lại hệ thống chặn hành động.
 
+#### REQ-ADMIN-004 — Xem chi tiết tài khoản người dùng *(bổ sung 2026-11-05)*
+**User Story**: Là ADMIN, tôi muốn xem chi tiết một tài khoản người dùng để hỗ trợ xử lý sự cố tài khoản (ví dụ "tôi bị khóa", "tôi không đăng nhập được").
+
+**Acceptance Criteria**:
+- AC1: Given ADMIN chọn một người dùng trong danh sách (REQ-ADMIN-001), When mở trang chi tiết, Then hệ thống hiển thị: email, họ tên, vai trò, trạng thái, thời điểm xác thực email, ngày tạo, lần cập nhật cuối, số lần đăng nhập sai liên tiếp, thời điểm hết khóa tạm (nếu có), số phiên đang hoạt động, lần đăng nhập gần nhất.
+- AC2 *(Assumption A-3, NFR-004)*: Trang chi tiết **không bao giờ** hiển thị mật khẩu/hash mật khẩu, token (phiên, xác thực email, đặt lại mật khẩu), hay dữ liệu nghiệp vụ riêng tư của người dùng ở các feature module (ví dụ nội dung công việc). Feature module chỉ được bổ sung **số liệu tổng hợp** (đếm, mốc thời gian) vào trang này.
+- AC3: Given ADMIN khóa/mở khóa hoặc đổi vai trò ngay trên trang chi tiết, When thao tác hoàn tất, Then thông tin trên trang (trạng thái, vai trò, số phiên đang hoạt động) được cập nhật theo dữ liệu mới nhất của server. Các quy tắc của REQ-ADMIN-002/003 (last-admin, tài khoản đã vô hiệu hóa) áp dụng nguyên vẹn.
+- AC4: Given tài khoản không tồn tại hoặc đường dẫn không hợp lệ, When ADMIN mở trang chi tiết, Then hệ thống báo "Không tìm thấy người dùng" và cho phép quay về danh sách.
+- AC5: Given người dùng có vai trò USER, When cố truy cập chức năng này, Then hệ thống từ chối (giống REQ-ADMIN-001 AC3).
+
 ---
 
 ## 4. Yêu cầu phi chức năng (Non-Functional Requirements)
@@ -238,7 +248,7 @@ Hệ thống Multi-User System cần một module nền tảng để quản lý 
 - Quản lý phiên đăng nhập đơn giản: duy trì phiên, đăng xuất (REQ-SESSION-001, REQ-SESSION-002).
 - Phân quyền RBAC hai vai trò: USER/ADMIN, gán mặc định và kiểm soát truy cập (REQ-RBAC-001, REQ-RBAC-002).
 - Quản lý tài khoản cá nhân: xem/sửa thông tin, đổi mật khẩu, tự vô hiệu hóa tài khoản (soft-delete) (REQ-ACCOUNT-001 đến 003).
-- Quản trị người dùng bởi ADMIN: xem/tìm kiếm, khóa/mở khóa, gán/thay đổi vai trò, kèm quy tắc last-admin (REQ-ADMIN-001 đến 003).
+- Quản trị người dùng bởi ADMIN: xem/tìm kiếm, khóa/mở khóa, gán/thay đổi vai trò, kèm quy tắc last-admin (REQ-ADMIN-001 đến 003); xem chi tiết tài khoản (REQ-ADMIN-004, bổ sung 2026-11-05).
 
 ### 5.2 Ngoài phạm vi (Out of Scope) — Giai đoạn 1
 - OAuth / đăng nhập mạng xã hội.

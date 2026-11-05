@@ -45,7 +45,10 @@ describe('TaskService', () => {
     it('tạo task cho đúng userId, trả về TaskResult không có userId', async () => {
       const { service, repository } = createService();
 
-      const result = await service.create(OWNER_ID, { title: 'Mua sữa', description: 'Mua sữa không đường' });
+      const result = await service.create(OWNER_ID, {
+        title: 'Mua sữa',
+        description: 'Mua sữa không đường',
+      });
 
       expect(repository.create).toHaveBeenCalledWith(OWNER_ID, {
         title: 'Mua sữa',

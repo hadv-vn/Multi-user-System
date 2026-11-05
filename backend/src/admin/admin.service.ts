@@ -20,7 +20,10 @@ import {
   ADMIN_ACTION_TYPE,
   type AdminActionLogRepository,
 } from './repositories/admin-action-log-repository.interface.js';
-import { ListUsersFilter } from './repositories/admin-user-record.interface.js';
+import {
+  AdminUserDetailRecord,
+  ListUsersFilter,
+} from './repositories/admin-user-record.interface.js';
 import {
   ADMIN_USER_REPOSITORY,
   type AdminUserRepository,
@@ -53,6 +56,14 @@ export class AdminService {
         totalPages: Math.ceil(totalItems / filter.limit),
       },
     };
+  }
+
+  async getUserDetail(userId: string, now: Date = new Date()): Promise<AdminUserDetailRecord> {
+    const detail = await this.adminUserRepository.findDetailById(userId, now);
+    if (detail === null) {
+      throw new UserNotFoundException();
+    }
+    return detail;
   }
 
   async lockUser(targetUserId: string, actorAdminId: string): Promise<AdminUserStatusResult> {

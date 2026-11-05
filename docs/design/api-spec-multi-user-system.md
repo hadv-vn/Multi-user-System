@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Phiên bản** | 1.2 (draft) — bổ sung mã lỗi `ADMIN_LOCK_UNLOCK_RATE_LIMITED` (mục 5.2/5.3, Phase 3 Hardening, T10); trước đó v1.1 bổ sung `CSRF_TOKEN_INVALID` (mục 1.6.1) theo LLD Phase 2 |
+| **Phiên bản** | 1.3 (draft) — bổ sung `GET /api/v1/admin/users/{id}` (mục 5.5, REQ-ADMIN-004, 2026-11-05); v1.2 bổ sung mã lỗi `ADMIN_LOCK_UNLOCK_RATE_LIMITED` (mục 5.2/5.3, Phase 3 Hardening, T10); trước đó v1.1 bổ sung `CSRF_TOKEN_INVALID` (mục 1.6.1) theo LLD Phase 2 |
 | **Trạng thái** | DRAFT — bản thiết kế contract, đã implement một phần theo tiến độ (Phase 0–3 Backend) |
 | **Ngày tạo** | 2026-10-18 (cập nhật 2026-10-19 — bổ sung rate-limit Admin lock/unlock theo T10) |
 | **Nguồn tham chiếu** | `docs/requirements/srs-multi-user-system.md` (SRS v1.0), `docs/architecture/adr/0001-session-management-strategy.md` (ADR 0001 — server-side session, cookie httpOnly, không JWT), `docs/design/lld-phase2-rbac-account-admin.md` (LLD Phase 2 — nguồn quyết định cơ chế CSRF cụ thể ở mục 1.6.1) |
@@ -601,6 +601,48 @@ Idempotent: nếu `role` gửi lên trùng role hiện tại → vẫn `200 OK`,
 | 500 | `INTERNAL_ERROR` | lỗi hệ thống |
 
 Ghi chú thiết kế quan trọng (đồng bộ với session design — ADR 0001): theo REQ-ADMIN-003 AC1, thay đổi vai trò **chỉ có hiệu lực ở phiên đăng nhập tiếp theo** của người dùng bị đổi — nghĩa là session đang hoạt động của họ (nếu có) vẫn giữ role cũ cho tới khi họ đăng nhập lại. Hệ quả kỹ thuật: bản ghi session nên lưu snapshot `role` tại thời điểm tạo session (không join real-time bảng `users.role` mỗi request), khác với cách xử lý `status` (luôn tra cứu real-time theo ADR 0001 để đáp ứng REQ-SESSION-001 AC3/REQ-ADMIN-002 AC1). Đây là điểm cần đối chiếu kỹ với thiết kế bảng `sessions` của `data-modeler`.
+
+---
+
+### 5.5 `GET /api/v1/admin/users/{id}` *(bổ sung 2026-11-05 — REQ-ADMIN-004)*
+Xem chi tiết một tài khoản để hỗ trợ xử lý sự cố. Ai gọi: **ADMIN**. Chỉ đọc nên không yêu cầu CSRF.
+
+**Path param**: `id` — UUID tài khoản mục tiêu.
+
+**Response thành công `200 OK`**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "email": "a@example.com",
+    "name": "Nguyễn Văn A",
+    "role": "USER",
+    "status": "ACTIVE",
+    "emailVerifiedAt": "2026-11-03T08:00:00Z",
+    "failedLoginAttempts": 0,
+    "lockedUntil": null,
+    "createdAt": "2026-11-01T00:00:00Z",
+    "updatedAt": "2026-11-04T10:00:00Z",
+    "activeSessionCount": 2,
+    "lastLoginAt": "2026-11-05T09:12:00Z"
+  }
+}
+```
+- `name`, `emailVerifiedAt`, `lockedUntil`, `lastLoginAt` có thể `null`.
+- `activeSessionCount`: số phiên chưa bị thu hồi (`revokedAt = null`) và chưa hết hạn (`expiresAt > now`).
+- `lastLoginAt`: thời điểm tạo phiên gần nhất, kể cả phiên đã thu hồi/hết hạn (dùng làm "lần đăng nhập gần nhất", không cần cột riêng trong `users`).
+- **Không bao giờ trả** `passwordHash`, token phiên/xác thực email/đặt lại mật khẩu, hay dữ liệu của feature module (SRS A-3). Repository dùng Prisma `select` tường minh, không `include`, để các trường này không bao giờ được đọc ra khỏi DB.
+
+**Response lỗi**
+| Status | code | Tình huống |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | `id` không đúng định dạng UUID |
+| 401 | `UNAUTHENTICATED` | không có session hợp lệ |
+| 403 | `FORBIDDEN` | người gọi role `USER` (AC5) |
+| 404 | `USER_NOT_FOUND` | không tìm thấy tài khoản với `id` đó (AC4) |
+| 500 | `INTERNAL_ERROR` | lỗi hệ thống |
+
+Ghi chú: feature module nghiệp vụ có thể cung cấp thêm endpoint số liệu tổng hợp theo user dưới cùng prefix `/api/v1/admin/...` trong chính module của mình (ví dụ module ToDo: `GET /api/v1/admin/users/{id}/task-stats`, đặc tả ở tài liệu của repo ToDo), để `AdminModule` lõi không phụ thuộc feature cụ thể.
 
 ---
 

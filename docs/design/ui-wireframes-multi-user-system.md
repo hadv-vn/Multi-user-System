@@ -398,12 +398,55 @@ Không áp dụng (không có input nhập liệu, token lấy từ query string
 
 ---
 
+### S8b. Chi tiết người dùng (`/admin/users/[id]`, chỉ ADMIN) — REQ-ADMIN-004 *(bổ sung 2026-11-05)*
+
+- **Mục đích**: Cho ADMIN xem chi tiết một tài khoản để hỗ trợ xử lý sự cố, và khóa/mở khóa/đổi vai trò ngay tại chỗ.
+- **Điểm vào**: Click vào email ở bảng S8 (email là link). Sidebar giữ mục "Quản trị" ở trạng thái active.
+- **Bố cục**:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ← Quay lại danh sách                                         │
+│ user@example.com   [USER]  ● Hoạt động                       │
+│                        [Khóa tài khoản] [Đổi vai trò]        │
+├──────────────────────────────┬───────────────────────────────┤
+│ THÔNG TIN TÀI KHOẢN          │ BẢO MẬT & PHIÊN ĐĂNG NHẬP     │
+│ Họ tên         Nguyễn Văn A  │ Đăng nhập sai liên tiếp   0   │
+│ Xác thực email 03/11/2026    │ Khóa tạm đến              —   │
+│ Ngày tạo       01/11/2026    │ Phiên đang hoạt động      2   │
+│ Cập nhật lần cuối 04/11/2026 │ Đăng nhập gần nhất 05/11 09:12│
+├──────────────────────────────┴───────────────────────────────┤
+│ [Vùng mở rộng cho feature module — chỉ số liệu tổng hợp]     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- **Thành phần chính**:
+  - Header: email (tiêu đề), badge vai trò, chấm trạng thái + nhãn (dùng chung component với bảng S8). Nút "Khóa tài khoản"/"Mở khóa tài khoản" và "Đổi vai trò" mở lại đúng các dialog của S8; cả hai `disabled` kèm tooltip khi tài khoản `DEACTIVATED`.
+  - 2 glass card cạnh nhau (xếp dọc trên màn hình hẹp): "Thông tin tài khoản" và "Bảo mật & phiên đăng nhập". Số lần đăng nhập sai > 0 hiển thị màu cảnh báo.
+  - **Vùng mở rộng** (`extraSections`): route ghép thêm card của feature module (ví dụ "Thống kê công việc" của ToDo). Card mở rộng tự quản lý loading/lỗi riêng, không làm hỏng phần còn lại của trang. Ràng buộc REQ-ADMIN-004 AC2: chỉ số liệu tổng hợp, không nội dung riêng tư.
+
+#### Trạng thái màn hình
+
+| Trạng thái | Hiển thị |
+|---|---|
+| Loading | Card trạng thái với spinner "Đang tải thông tin người dùng…". |
+| Not found | `id` không tồn tại hoặc không phải UUID (BE trả 404/400): card cảnh báo "Không tìm thấy người dùng" + nút "Về danh sách người dùng" (AC4). |
+| Forbidden | USER truy cập URL trực tiếp: giống trạng thái chặn của S8 (AC5). |
+| Error | Card lỗi kèm "Thử lại" và "Về danh sách người dùng". |
+| Success | Header + 2 card + vùng mở rộng. Sau khi khóa/mở khóa/đổi vai trò thành công: tải lại dữ liệu **không** nháy về spinner, để trạng thái và số phiên khớp server (AC3). |
+
+#### Quy tắc validate input
+
+Không có input trực tiếp trên trang; các dialog dùng lại quy tắc của S8.
+
+---
+
 ### S9. Layout chung — Shell điều hướng (NavBar + Sidebar)
 
 - **Mục đích**: Khung điều hướng dùng chung cho mọi màn hình sau đăng nhập (S7, S8), phân biệt rõ quyền hạn USER vs ADMIN.
 - **Thành phần chính**:
   - **NavBar (trên cùng)**: logo/tên sản phẩm (trái); bên phải: avatar/tên người dùng kèm badge vai trò nhỏ, click mở dropdown gồm "Hồ sơ cá nhân" (→ S7) và "Đăng xuất".
-  - **Sidebar (trái)**: mục "Hồ sơ cá nhân" (luôn hiện); mục **"Quản trị"** chỉ hiện thêm nếu vai trò hiện tại của phiên đăng nhập là `ADMIN` (REQ-RBAC-002 AC3 — ADMIN truy cập bình thường chức năng USER, cộng thêm quyền admin).
+  - **Sidebar (trái)**: mục "Hồ sơ cá nhân" (luôn hiện); mục **"Quản trị"** chỉ hiện thêm nếu vai trò hiện tại của phiên đăng nhập là `ADMIN` (REQ-RBAC-002 AC3 — ADMIN truy cập bình thường chức năng USER, cộng thêm quyền admin). *(Cập nhật 2026-11-05)*: Sidebar khai báo bằng danh sách mục có lọc theo role (`components/shell/Sidebar.tsx`); mục "Quản trị" active cho cả `/admin/users/*` (S8b). Feature module có thể thêm mục riêng chỉ cho ADMIN — hiện có "Thống kê công việc" (`/admin/task-stats`) của ToDo.
   - Vùng nội dung chính bên phải hiển thị màn hình tương ứng (S7/S8).
 
 #### Trạng thái màn hình
@@ -473,6 +516,9 @@ flowchart TD
   AdminList -->|"Click 'Đổi vai trò' một dòng"| ConfirmRole["Dialog đổi vai trò"]
   ConfirmRole -->|"Chọn vai trò mới, nhấn Xác nhận"| AdminList
   ConfirmRole -->|"Chặn: hạ cấp sẽ khiến hệ thống còn 0 ADMIN"| AdminList
+  AdminList -->|"Click email một dòng"| AdminDetail["S8b. Chi tiết người dùng"]
+  AdminDetail -->|"Khóa/Mở khóa, Đổi vai trò (dùng lại dialog S8)"| AdminDetail
+  AdminDetail -->|"Click 'Quay lại danh sách'"| AdminList
   AdminList -->|"USER cố truy cập URL trực tiếp"| Forbidden["S8: trạng thái Không đủ quyền truy cập"]
   Forbidden -->|"Nhấn Về trang hồ sơ cá nhân"| Profile
 ```

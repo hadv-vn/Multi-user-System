@@ -1,7 +1,9 @@
+import Link from 'next/link';
+
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { RoleBadge } from '@/components/ui/RoleBadge';
 import type { AdminUserListItem } from '@/lib/admin/admin-api';
-import type { AccountStatus } from '@/lib/session/authenticated-user.types';
+import { AccountStatusIndicator } from './AccountStatusIndicator';
 
 export interface UsersTableProps {
   rows: AdminUserListItem[];
@@ -12,20 +14,6 @@ export interface UsersTableProps {
   onRequestChangeRole: (row: AdminUserListItem) => void;
 }
 
-const STATUS_LABEL: Record<AccountStatus, string> = {
-  ACTIVE: 'Hoạt động',
-  LOCKED: 'Đã khóa',
-  PENDING_VERIFICATION: 'Chưa xác thực email',
-  DEACTIVATED: 'Đã vô hiệu hóa',
-};
-
-const STATUS_DOT_CLASS: Record<AccountStatus, string> = {
-  ACTIVE: 'bg-neon-success',
-  LOCKED: 'bg-neon-danger',
-  PENDING_VERIFICATION: 'bg-neon-warning',
-  DEACTIVATED: 'bg-slate-500',
-};
-
 export function UsersTable({
   rows,
   isLoading,
@@ -35,7 +23,19 @@ export function UsersTable({
   onRequestChangeRole,
 }: UsersTableProps) {
   const columns: DataTableColumn<AdminUserListItem>[] = [
-    { key: 'email', header: 'Email', render: (row) => row.email },
+    {
+      key: 'email',
+      header: 'Email',
+      render: (row) => (
+        <Link
+          href={`/admin/users/${row.id}`}
+          aria-label={`Xem chi tiết tài khoản ${row.email}`}
+          className="text-slate-100 transition-colors hover:text-neon-cyan hover:underline"
+        >
+          {row.email}
+        </Link>
+      ),
+    },
     {
       key: 'role',
       header: 'Vai trò',
@@ -44,12 +44,7 @@ export function UsersTable({
     {
       key: 'status',
       header: 'Trạng thái',
-      render: (row) => (
-        <span className="flex items-center gap-2">
-          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASS[row.status]}`} />
-          {STATUS_LABEL[row.status]}
-        </span>
-      ),
+      render: (row) => <AccountStatusIndicator status={row.status} />,
     },
     {
       key: 'actions',
