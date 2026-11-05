@@ -11,6 +11,25 @@ export interface AdminUserListItem {
   createdAt: string;
 }
 
+/**
+ * Chi tiết tài khoản cho màn hình quản trị — chỉ trường phục vụ quản trị
+ * (SRS A-3). Mốc thời gian là chuỗi ISO 8601 hoặc null.
+ */
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  status: AccountStatus;
+  emailVerifiedAt: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+  activeSessionCount: number;
+  lastLoginAt: string | null;
+}
+
 export interface ListUsersInput {
   page: number;
   limit: number;
@@ -54,6 +73,14 @@ export class AdminApi {
       throw new Error('Invariant violation: GET /admin/users response thiếu `meta`.');
     }
     return { items: data ?? [], meta };
+  }
+
+  async getUser(id: string): Promise<AdminUserDetail> {
+    const { data } = await this.httpClient.request<AdminUserDetail>({
+      method: 'GET',
+      path: `/admin/users/${encodeURIComponent(id)}`,
+    });
+    return data as AdminUserDetail;
   }
 
   async lockUser(id: string): Promise<LockUnlockResult> {

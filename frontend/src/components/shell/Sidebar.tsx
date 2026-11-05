@@ -32,7 +32,7 @@ export function Sidebar({ role }: SidebarProps) {
             <Link
               href="/admin/users"
               className={`${LINK_CLASS} ${
-                pathname === '/admin/users' ? ACTIVE_CLASS : INACTIVE_CLASS
+                pathname.startsWith('/admin/users') ? ACTIVE_CLASS : INACTIVE_CLASS
               }`}
             >
               Quản trị
