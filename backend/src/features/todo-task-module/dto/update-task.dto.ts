@@ -13,11 +13,11 @@ import { TASK_STATUS_VALUES } from '../task-status.constants.js';
  * mọi validator khác của field đó) — nên `description: null` (xóa mô tả,
  * tường minh) đi qua được mà không cần `@ValidateIf` riêng.
  *
- * TaskService phân biệt field "có gửi" hay "không gửi" bằng
- * `Object.hasOwn(dto, 'title')`/`'status'` — class-transformer (được
- * ValidationPipe gọi ngầm) chỉ gán đúng những key THỰC SỰ có trong JSON body
- * lên instance, nên field không gửi sẽ không tồn tại như own property (khác
- * `undefined` được gán tường minh).
+ * TaskService phân biệt field "có gửi" hay "không gửi" bằng `!== undefined`,
+ * KHÔNG dùng `Object.hasOwn`: backend build với `target: ES2023` nên mọi
+ * field khai báo ở class này luôn là own property (giá trị `undefined`) trên
+ * instance do ValidationPipe/class-transformer tạo, kể cả khi body không gửi
+ * field đó. Giá trị `null` chỉ xuất hiện khi client gửi tường minh.
  */
 export class UpdateTaskDto {
   @IsOptional()

@@ -3,6 +3,9 @@
  * method của object mock (vd `expect(mocks.x.method).toHaveBeenCalledWith(...)`,
  * `vi.mocked(mocks.x.method)`) để assert — các method này là `vi.fn()`
  * không dùng `this`, không có rủi ro mất ngữ cảnh `this` thật như rule giả định. */
+import { plainToInstance } from 'class-transformer';
+
+import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { TaskForbiddenException } from './exceptions/task-forbidden.exception.js';
 import { TaskNotFoundException } from './exceptions/task-not-found.exception.js';
 import type { TaskRecord } from './repositories/task-record.interface.js';
@@ -115,6 +118,54 @@ describe('TaskService', () => {
       expect(repository.updateStatus).toHaveBeenCalledWith(TASK_ID, 'done');
       expect(repository.updateDetails).not.toHaveBeenCalled();
       expect(result.status).toBe('done');
+    });
+
+    // DTO thật do ValidationPipe tạo là instance class — với target ES2023,
+    // field không gửi vẫn là own property `undefined`. Dùng plainToInstance
+    // để tái hiện đúng (regression: toggle status từng xoá mất description).
+    describe('với DTO là instance qua class-transformer', () => {
+      function toDto(body: object): UpdateTaskDto {
+        return plainToInstance(UpdateTaskDto, body);
+      }
+
+      it('chỉ gửi status -> không gọi updateDetails, giữ nguyên description', async () => {
+        const { service, repository } = createService();
+
+        await service.update(OWNER_ID, TASK_ID, toDto({ status: 'done' }));
+
+        expect(repository.updateDetails).not.toHaveBeenCalled();
+        expect(repository.updateStatus).toHaveBeenCalledWith(TASK_ID, 'done');
+      });
+
+      it('chỉ gửi title -> giữ nguyên description hiện có', async () => {
+        const { service, repository } = createService();
+
+        await service.update(OWNER_ID, TASK_ID, toDto({ title: 'Mua sữa đậu nành' }));
+
+        expect(repository.updateDetails).toHaveBeenCalledWith(TASK_ID, {
+          title: 'Mua sữa đậu nành',
+          description: 'Mua sữa không đường',
+        });
+      });
+
+      it('gửi description: null tường minh -> xoá mô tả', async () => {
+        const { service, repository } = createService();
+
+        await service.update(OWNER_ID, TASK_ID, toDto({ title: 'Mua sữa', description: null }));
+
+        expect(repository.updateDetails).toHaveBeenCalledWith(TASK_ID, {
+          title: 'Mua sữa',
+          description: null,
+        });
+      });
+
+      it('gửi title: null -> coi như không gửi title, không ghi null vào DB', async () => {
+        const { service, repository } = createService();
+
+        await service.update(OWNER_ID, TASK_ID, toDto({ title: null }));
+
+        expect(repository.updateDetails).not.toHaveBeenCalled();
+      });
     });
 
     it('task không tồn tại -> TaskNotFoundException, không gọi repository update nào', async () => {

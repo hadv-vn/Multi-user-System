@@ -33,18 +33,17 @@ export class TaskService {
   async update(userId: string, taskId: string, dto: UpdateTaskDto): Promise<TaskResult> {
     const task = await this.findOwnedTaskOrThrow(userId, taskId);
 
-    // `Object.hasOwn` — phân biệt field THỰC SỰ có trong JSON body (kể cả
-    // giá trị null) với field hoàn toàn không gửi (xem UpdateTaskDto).
+    // Field không gửi là `undefined`; `description: null` gửi tường minh là
+    // "xoá mô tả". KHÔNG dùng `Object.hasOwn` — xem UpdateTaskDto.
     let updated = task;
-    if (Object.hasOwn(dto, 'title')) {
+    // `@IsOptional()` cho cả `title: null` đi qua — coi như không gửi title.
+    if (typeof dto.title === 'string') {
       updated = await this.taskRepository.updateDetails(taskId, {
-        title: dto.title ?? task.title,
-        description: Object.hasOwn(dto, 'description')
-          ? (dto.description ?? null)
-          : task.description,
+        title: dto.title,
+        description: dto.description === undefined ? task.description : dto.description,
       });
     }
-    if (Object.hasOwn(dto, 'status') && dto.status !== undefined) {
+    if (dto.status !== undefined) {
       updated = await this.taskRepository.updateStatus(taskId, dto.status);
     }
 
