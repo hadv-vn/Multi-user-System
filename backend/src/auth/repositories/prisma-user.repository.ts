@@ -49,9 +49,13 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async markEmailVerified(userId: string): Promise<void> {
+    // Phải chuyển status sang ACTIVE ở đây — login() chặn dựa trên
+    // `status === PENDING_VERIFICATION` (auth.service.ts), không dựa trên
+    // emailVerifiedAt. Thiếu dòng này khiến user xác thực email thành công
+    // nhưng vẫn không bao giờ đăng nhập được (403 ACCOUNT_EMAIL_NOT_VERIFIED).
     await this.prisma.user.update({
       where: { id: userId },
-      data: { emailVerifiedAt: new Date() },
+      data: { emailVerifiedAt: new Date(), status: USER_STATUS.ACTIVE },
     });
   }
 
