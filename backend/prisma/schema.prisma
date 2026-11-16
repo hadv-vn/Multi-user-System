@@ -39,6 +39,7 @@ model User {
   // ToDo feature extension — xem backend/src/features/todo-task-module.
   // KHÔNG phải quan hệ generic của Multi-user-System.
   tasks                   Task[]
+  categories              Category[]
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
@@ -151,12 +152,36 @@ model Task {
   title       String   @db.VarChar(255)
   description String?  @db.Text
   status      String   @default("open") @db.VarChar(10)
+  priority    String   @default("medium") @db.VarChar(10)
+  sortKey     Float    @map("sort_key")
+  categoryId  String?  @map("category_id") @db.Uuid
+  dueDate     DateTime? @map("due_date") @db.Date
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, status])
+  @@index([userId, sortKey])
+  @@index([categoryId])
   @@map("tasks")
+}
+
+// Danh mục task do người dùng tự tạo — docs/Task_Category_ToDo.md. 1 task thuộc TỐI ĐA 1
+// category (không phải multi-tag N-N, xem mục 2 tài liệu trên — quyết định có chủ đích).
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  color     String   @default("#1E88E5") @db.VarChar(10)
+  icon      String   @default("📁") @db.VarChar(8)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([userId])
+  @@map("categories")
 }

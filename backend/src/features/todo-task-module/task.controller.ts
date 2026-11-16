@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -22,6 +23,7 @@ import type { AuthenticatedUserContext } from '../../types/authenticated-user-co
 
 import { CreateTaskDto } from './dto/create-task.dto.js';
 import { ListTasksQueryDto } from './dto/list-tasks-query.dto.js';
+import { ReorderTaskDto } from './dto/reorder-task.dto.js';
 import { UpdateTaskDto } from './dto/update-task.dto.js';
 import { TaskResult } from './task-result.interface.js';
 import { TaskService } from './task.service.js';
@@ -68,6 +70,17 @@ export class TaskController {
     @Body() dto: UpdateTaskDto,
   ): Promise<{ data: TaskResult }> {
     const data = await this.taskService.update(user.userId, id, dto);
+    return { data };
+  }
+
+  @Patch(':id/reorder')
+  @UseGuards(CsrfGuard)
+  async reorder(
+    @CurrentUser() user: AuthenticatedUserContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReorderTaskDto,
+  ): Promise<{ data: TaskResult }> {
+    const data = await this.taskService.reorder(user.userId, id, dto);
     return { data };
   }
 

@@ -1,5 +1,6 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
+import { TASK_PRIORITY_VALUES } from '../task-priority.constants.js';
 import { TASK_STATUS_VALUES } from '../task-status.constants.js';
 
 /**
@@ -32,4 +33,19 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsIn(TASK_STATUS_VALUES)
   status?: string;
+
+  /** `null` tường minh = bỏ danh mục; không gửi = giữ nguyên — cùng quy ước `description`. */
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string | null;
+
+  /** `null` tường minh = xóa hạn; không gửi = giữ nguyên — cùng quy ước `description`/`categoryId`. */
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string | null;
+
+  /** Không có khái niệm "xóa" — luôn phải có giá trị hợp lệ khi gửi, khác `description`/`dueDate`. */
+  @IsOptional()
+  @IsIn(TASK_PRIORITY_VALUES)
+  priority?: string;
 }
